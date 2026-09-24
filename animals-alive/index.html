@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#8fd3ff">
+<title>画的小动物活过来</title>
+<style>
+:root { --ink: #3b2f4a; --paper: #fffaf0; --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #8fd3ff; font-family: var(--font); color: var(--ink); overscroll-behavior: none; }
+canvas { display: block; }
+#world { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
+button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; touch-action: manipulation; }
+.kbtn { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 58px; height: 58px; padding: 4px 8px; border-radius: 18px; background: #fff; box-shadow: 0 4px 0 rgba(59,47,74,0.18), 0 6px 16px rgba(0,0,0,0.12); font-size: 12.5px; font-weight: 700; transition: transform .1s; }
+.kbtn:active { transform: translateY(3px) scale(0.97); box-shadow: 0 1px 0 rgba(59,47,74,0.18); }
+.kbtn svg { width: 28px; height: 28px; }
+.kbtn.on { background: #ffe27a; }
+
+/* ---- 画画层 ---- */
+#drawLayer { position: fixed; inset: 0; transition: opacity .5s; z-index: 5; }
+#drawLayer.hide { opacity: 0; pointer-events: none; }
+#dim { position: absolute; inset: 0; background: rgba(40,60,90,0.35); }
+#paper, #ink { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+#drawTitle { position: absolute; left: 50%; top: max(14px, env(safe-area-inset-top)); transform: translateX(-50%); background: #fff; border-radius: 999px; padding: 10px 22px; font-size: 22px; font-weight: 800; box-shadow: 0 4px 0 rgba(59,47,74,0.15); white-space: nowrap; pointer-events: none; }
+#hint { position: absolute; pointer-events: none; transition: opacity .4s; text-align: center; }
+#hint svg { width: 100%; height: 100%; overflow: visible; }
+#hint .t { position: absolute; left: 0; right: 0; bottom: -46px; font-size: 18px; font-weight: 800; color: #6b5a80; }
+#hint.gone { opacity: 0; }
+@keyframes dash { to { stroke-dashoffset: -60; } }
+#hint path { animation: dash 1.6s linear infinite; }
+#drawBar { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px max(12px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 14px; justify-content: center; flex-wrap: wrap; }
+#palette { display: flex; gap: 8px; background: rgba(255,255,255,0.9); padding: 8px 10px; border-radius: 22px; box-shadow: 0 4px 0 rgba(59,47,74,0.15); }
+#palette i { width: 38px; height: 38px; border-radius: 50%; display: block; cursor: pointer; border: 4px solid #fff; box-shadow: 0 0 0 2px rgba(0,0,0,0.12); transition: transform .12s; }
+#palette i.on { transform: scale(1.18); box-shadow: 0 0 0 3px var(--ink); }
+.group { display: flex; gap: 8px; }
+#bAlive { height: 66px; padding: 0 26px; font-size: 24px; font-weight: 900; border-radius: 24px; background: linear-gradient(135deg, #ffcf3f, #ff7ba8); color: #fff; text-shadow: 0 2px 0 rgba(150,40,80,0.35); box-shadow: 0 5px 0 #d4507a, 0 8px 20px rgba(255,90,140,0.35); display: inline-flex; align-items: center; gap: 8px; }
+#bAlive svg { width: 34px; height: 34px; }
+#bAlive:active { transform: translateY(4px); box-shadow: 0 1px 0 #d4507a; }
+#bAlive.off { filter: grayscale(0.7) opacity(0.6); }
+@keyframes wiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
+#bAlive.shake { animation: wiggle .3s 2; }
+#bAlive.ready { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+#bBackWorld { position: absolute; left: max(14px, env(safe-area-inset-left)); top: max(14px, env(safe-area-inset-top)); }
+
+/* ---- 小世界层 ---- */
+#worldUI { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+#worldUI > * { pointer-events: auto; }
+#bDraw { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); height: 76px; padding: 0 24px; border-radius: 28px; font-size: 22px; font-weight: 900; background: linear-gradient(135deg, #7ee0a2, #3fb7ff); color: #fff; text-shadow: 0 2px 0 rgba(20,90,120,0.35); box-shadow: 0 5px 0 #2a8fcf, 0 8px 22px rgba(40,140,220,0.35); display: inline-flex; align-items: center; gap: 10px; }
+#bDraw svg { width: 38px; height: 38px; }
+#bDraw:active { transform: translateY(4px); box-shadow: 0 1px 0 #2a8fcf; }
+#corner { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(14px, env(safe-area-inset-top)); display: flex; gap: 10px; }
+#corner .kbtn { min-width: 52px; height: 52px; border-radius: 16px; }
+#tipW { position: absolute; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); background: rgba(255,255,255,0.92); padding: 10px 18px; border-radius: 999px; font-size: 16px; font-weight: 700; box-shadow: 0 3px 0 rgba(59,47,74,0.12); white-space: nowrap; transition: opacity .5s; pointer-events: none; }
+#tipW.gone { opacity: 0; }
+#count { position: absolute; left: max(14px, env(safe-area-inset-left)); top: max(14px, env(safe-area-inset-top)); background: rgba(255,255,255,0.85); border-radius: 999px; padding: 8px 16px; font-weight: 800; font-size: 16px; pointer-events: none; }
+body.drawing #worldUI { opacity: 0; pointer-events: none; }
+body.drawing #worldUI > * { pointer-events: none; }
+#flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 20; transition: opacity .5s; }
+#flash.on { opacity: 0.9; transition: none; }
+#help { position: fixed; inset: 0; display: none; place-items: center; background: rgba(30,40,70,0.45); z-index: 30; padding: 16px; }
+#help.show { display: grid; }
+#help .card { width: min(520px, 100%); max-height: 86vh; overflow: auto; background: #fff; border-radius: 24px; padding: 20px 22px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
+#help h2 { margin: 0 0 8px; font-size: 20px; }
+#help h3 { font-size: 15px; margin: 14px 0 4px; color: #d4507a; }
+#help p, #help li { font-size: 14px; line-height: 1.75; margin: 4px 0; }
+#help ul { padding-left: 20px; margin: 0; }
+#helpClose { float: right; background: #ffe27a; border-radius: 999px; padding: 6px 14px; font-weight: 800; }
+#photoBox { position: fixed; inset: 0; display: none; place-items: center; background: rgba(30,40,70,0.55); z-index: 25; padding: 16px; }
+#photoBox.show { display: grid; }
+#photoBox .card { background: #fff; border-radius: 22px; padding: 14px; text-align: center; max-width: 100%; }
+#photoBox img { max-width: min(640px, 88vw); max-height: 62vh; border-radius: 12px; display: block; margin: 0 auto 10px; -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+#photoBox .row { display: flex; gap: 10px; justify-content: center; }
+#photoBox p { margin: 0 0 10px; font-size: 14px; color: #6b5a80; }
+@media (max-width: 640px) {
+  #drawTitle { font-size: 18px; padding: 8px 18px; }
+  #drawBar { gap: 8px; padding: 8px 8px max(10px, env(safe-area-inset-bottom)); }
+  #palette { gap: 5px; padding: 6px 8px; }
+  #palette i { width: 32px; height: 32px; border-width: 3px; }
+  .kbtn { min-width: 50px; height: 52px; font-size: 11.5px; border-radius: 15px; }
+  .kbtn svg { width: 24px; height: 24px; }
+  #bAlive { height: 56px; padding: 0 18px; font-size: 20px; }
+  #bDraw { height: 64px; font-size: 19px; padding: 0 18px; }
+  #bDraw svg { width: 32px; height: 32px; }
+  #corner .kbtn { min-width: 46px; height: 46px; }
+  #corner { gap: 7px; }
+  #tipW { font-size: 14px; bottom: auto; top: calc(max(14px, env(safe-area-inset-top)) + 62px); }
+  #count { display: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="world"></canvas>
+
+<div id="worldUI">
+  <div id="count"></div>
+  <div id="corner">
+    <button class="kbtn on" id="bSound" aria-label="声音"><svg viewBox="0 0 32 32"><path d="M5 12h5l7-6v20l-7-6H5z" fill="#3b2f4a"/><path class="w" d="M21 11c2 2.5 2 7.5 0 10M24.5 8c4 4.5 4 11.5 0 16" fill="none" stroke="#3b2f4a" stroke-width="2.6" stroke-linecap="round"/></svg>声音</button>
+    <button class="kbtn" id="bNight" aria-label="天黑"><svg viewBox="0 0 32 32"><path d="M20 4a12 12 0 1 0 8 19A10 10 0 0 1 20 4z" fill="#ffd84a" stroke="#3b2f4a" stroke-width="2"/></svg><span>天黑</span></button>
+    <button class="kbtn" id="bPhoto" aria-label="拍照"><svg viewBox="0 0 32 32"><rect x="3" y="9" width="26" height="18" rx="4" fill="#8fd3ff" stroke="#3b2f4a" stroke-width="2"/><path d="M11 9l2-4h6l2 4" fill="#8fd3ff" stroke="#3b2f4a" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="18" r="5" fill="#fff" stroke="#3b2f4a" stroke-width="2"/></svg>拍照</button>
+    <button class="kbtn" id="bHelp" aria-label="说明"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#b6f0c8" stroke="#3b2f4a" stroke-width="2"/><path d="M12.5 12.5a3.5 3.5 0 1 1 5 3.2c-1 .5-1.5 1.3-1.5 2.3v1" fill="none" stroke="#3b2f4a" stroke-width="2.6" stroke-linecap="round"/><circle cx="16" cy="23.5" r="1.7" fill="#3b2f4a"/></svg>大人看</button>
+  </div>
+  <div id="tipW"></div>
+  <button id="bDraw"><svg viewBox="0 0 40 40"><path d="M8 32l3-9L27 7l6 6-16 16z" fill="#ffd84a" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/><path d="M8 32l3-9 6 6z" fill="#ffb3c6"/><path d="M24 10l6 6" stroke="#fff" stroke-width="2.5"/></svg>再画一只</button>
+</div>
+
+<div id="drawLayer">
+  <div id="dim"></div>
+  <canvas id="paper"></canvas>
+  <canvas id="ink"></canvas>
+  <div id="hint"><svg viewBox="0 0 200 160"><path d="M100 20 C150 18 182 50 178 88 C174 128 136 146 96 142 C52 138 22 112 24 76 C26 40 56 22 100 20 Z" fill="none" stroke="#b9a7d1" stroke-width="6" stroke-linecap="round" stroke-dasharray="14 16"/></svg><div class="t">先画一个圈，当它的身体</div></div>
+  <div id="drawTitle">画一只小动物吧！</div>
+  <button class="kbtn" id="bBackWorld" aria-label="回小世界"><svg viewBox="0 0 32 32"><path d="M5 15L16 5l11 10v12H20v-7h-8v7H5z" fill="#ffb3c6" stroke="#3b2f4a" stroke-width="2" stroke-linejoin="round"/></svg>小世界</button>
+  <div id="drawBar">
+    <div id="palette"></div>
+    <div class="group">
+      <button class="kbtn" id="bUndo"><svg viewBox="0 0 32 32"><path d="M12 8L5 14l7 6" fill="none" stroke="#3b2f4a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 14h13a7 7 0 0 1 0 14h-5" fill="none" stroke="#3b2f4a" stroke-width="3" stroke-linecap="round"/></svg>撤销</button>
+      <button class="kbtn" id="bClear"><svg viewBox="0 0 32 32"><path d="M8 10h16l-1.5 17h-13z" fill="#ffd0d0" stroke="#3b2f4a" stroke-width="2" stroke-linejoin="round"/><path d="M6 10h20M13 10V6h6v4" fill="none" stroke="#3b2f4a" stroke-width="2.4" stroke-linecap="round"/></svg>擦掉</button>
+      <button class="kbtn" id="bDemo"><svg viewBox="0 0 32 32"><path d="M16 3l3.5 8 8.5.8-6.5 5.7 2 8.5L16 21.5 8.5 26l2-8.5L4 11.8l8.5-.8z" fill="#ffd84a" stroke="#3b2f4a" stroke-width="2" stroke-linejoin="round"/></svg>示范</button>
+    </div>
+    <div class="group" id="modes">
+      <button class="kbtn on" data-mode="walk"><svg viewBox="0 0 32 32"><ellipse cx="11" cy="20" rx="5" ry="7" fill="#ffb37a" stroke="#3b2f4a" stroke-width="2"/><ellipse cx="21" cy="12" rx="5" ry="7" fill="#ffb37a" stroke="#3b2f4a" stroke-width="2"/></svg>走路</button>
+      <button class="kbtn" data-mode="hop"><svg viewBox="0 0 32 32"><path d="M8 26c4 0 4-3 8-3s4 3 8 3M8 20c4 0 4-3 8-3s4 3 8 3" fill="none" stroke="#3b2f4a" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="9" r="5" fill="#8fe0a8" stroke="#3b2f4a" stroke-width="2"/></svg>蹦跳</button>
+      <button class="kbtn" data-mode="fly"><svg viewBox="0 0 32 32"><path d="M16 17C12 7 4 6 3 11s6 9 13 6zM16 17c4-10 12-11 13-6s-6 9-13 6z" fill="#b8d8ff" stroke="#3b2f4a" stroke-width="2" stroke-linejoin="round"/><ellipse cx="16" cy="19" rx="3" ry="6" fill="#ffb3c6" stroke="#3b2f4a" stroke-width="2"/></svg>飞</button>
+    </div>
+    <button id="bAlive" class="off"><svg viewBox="0 0 40 40"><path d="M8 34L28 14" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M30 4l1.8 4.6 4.7 1.6-4.7 1.6L30 16.4l-1.8-4.6-4.7-1.6 4.7-1.6z" fill="#fff"/><circle cx="12" cy="10" r="2" fill="#fff"/><circle cx="34" cy="26" r="2" fill="#fff"/></svg>变活！</button>
+  </div>
+</div>
+
+<div id="flash"></div>
+<div id="photoBox"><div class="card"><img id="photoImg" alt="小世界的照片"><p>长按图片可以保存到相册</p><div class="row"><a class="kbtn" id="photoSave" download="我的小动物.png" style="text-decoration:none;color:inherit;min-width:110px">下载图片</a><button class="kbtn" id="photoClose" style="min-width:90px">关闭</button></div></div></div>
+
+<div id="help"><div class="card">
+  <button id="helpClose">知道了</button>
+  <h2>画的小动物活过来</h2>
+  <p>给小朋友的涂鸦游戏：随手画一只小动物，按「变活！」，它就会长出腿和眼睛，跳进草地里生活。</p>
+  <h3>怎么玩</h3>
+  <ul>
+    <li>先画一个圈当身体，身上可以随便加花纹、尾巴、耳朵。不会画的话点「示范」。</li>
+    <li>选「走路」「蹦跳」或「飞」，决定它怎么动。身体越长，腿越多——长条的会变成毛毛虫。</li>
+    <li>点草地会掉下水果和饼干，小动物会跑过去吃；点小动物，它会跳起来说出自己的名字；按住可以把它拎起来。</li>
+    <li>右上角的月亮让天黑下来，小动物会慢慢睡着；「拍照」可以保存一张全家福。</li>
+  </ul>
+  <h3>给家长</h3>
+  <ul>
+    <li>程序会自己找出画里被圈起来的部分当身体，没画成一个圈也没关系，它会自动补上。</li>
+    <li>所有东西都在这台设备上运行，不联网、不上传，也没有广告。画过的小动物保存在这个浏览器里，下次打开还在（最多 10 只）。</li>
+    <li>名字用的是设备自带的语音朗读；如果听不到，检查一下手机静音开关。</li>
+  </ul>
+</div></div>
+<script>
+"use strict";
+// ===== audio.js =====
+// ============ 声音：全部用 Web Audio 现场合成 ============
+class KidAudio {
+  constructor() { this.on = true; this.ctx = null; this.music = true; this.tOff = 0; }
+  init(offline) {
+    if (this.ctx) { if (this.ctx.state === 'suspended' && this.ctx.resume) this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC && !offline) return;
+    const c = this.ctx = offline || new AC();
+    this.master = c.createGain(); this.master.gain.value = this.on ? 0.9 : 0; this.master.connect(c.destination);
+    const len = c.sampleRate * 1.6, ir = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+    this.rev = c.createConvolver(); this.rev.buffer = ir; const rg = c.createGain(); rg.gain.value = 0.35; this.rev.connect(rg); rg.connect(this.master);
+    const nb = c.createBuffer(1, c.sampleRate, c.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1; this.noise = nb;
+    this.musicGain = c.createGain(); this.musicGain.gain.value = 0.5; this.musicGain.connect(this.master); this.musicGain.connect(this.rev);
+    this.nextNote = c.currentTime + 0.5; this.step = 0;
+  }
+  now() { return this.ctx.currentTime + this.tOff; }
+  toggle() { this.on = !this.on; if (this.on) this.init(); if (this.ctx) this.master.gain.setTargetAtTime(this.on ? 0.9 : 0, this.ctx.currentTime, 0.1); return this.on; }
+  _ok() { return this.ctx && (this.on || this.tOff); }
+  tone(f, t, dur, type = 'sine', vol = 0.2, f2 = null, dest = null) {
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(dest || this.master); if (!dest) g.connect(this.rev); o.start(t); o.stop(t + dur + 0.05);
+  }
+  pop() { if (!this._ok()) return; const t = this.now(); this.tone(900, t, 0.12, 'sine', 0.25, 300); }
+  boing() {
+    if (!this._ok()) return; const c = this.ctx, t = this.now();
+    const o = c.createOscillator(), g = c.createGain(), l = c.createOscillator(), lg = c.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(520, t + 0.12); o.frequency.exponentialRampToValueAtTime(240, t + 0.45);
+    l.frequency.value = 28; lg.gain.value = 30; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + 0.5);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.55);
+  }
+  giggle(pitch = 1) {
+    if (!this._ok()) return; const t = this.now();
+    for (let i = 0; i < 5; i++) this.tone((620 + i * 70) * pitch, t + i * 0.075, 0.09, 'sine', 0.13, (820 + i * 90) * pitch);
+  }
+  chomp() {
+    if (!this._ok()) return; const c = this.ctx, t = this.now();
+    const s = c.createBufferSource(); s.buffer = this.noise; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 1.2;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.5); s.stop(t + 0.15);
+  }
+  magic() {
+    if (!this._ok()) return; const t = this.now(); const notes = [0, 4, 7, 12, 16, 19, 24];
+    notes.forEach((n, i) => { const f = 523.25 * Math.pow(2, n / 12); this.tone(f, t + i * 0.07, 0.9, 'sine', 0.12); this.tone(f * 2.01, t + i * 0.07, 0.4, 'sine', 0.03); });
+  }
+  tada() { if (!this._ok()) return; const t = this.now(); [[0, 0], [4, 0.12], [7, 0.24], [12, 0.36]].forEach(([n, d]) => this.tone(392 * Math.pow(2, n / 12), t + d, 0.7, 'triangle', 0.14)); }
+  whoosh() {
+    if (!this._ok()) return; const c = this.ctx, t = this.now();
+    const s = c.createBufferSource(); s.buffer = this.noise; s.loop = true; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2;
+    f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(2400, t + 0.35);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t); s.stop(t + 0.5);
+  }
+  shutter() { if (!this._ok()) return; const t = this.now(); this.tone(1800, t, 0.05, 'square', 0.05, 1200); this.tone(1200, t + 0.07, 0.06, 'square', 0.05, 800); }
+  scribble(v) { // 画画时轻轻的沙沙声
+    if (!this._ok() || Math.random() > 0.35) return; const c = this.ctx, t = this.now();
+    const s = c.createBufferSource(); s.buffer = this.noise; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.min(0.05, 0.01 + v * 0.002), t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.8); s.stop(t + 0.08);
+  }
+  // 背景小曲：五声音阶的马林巴，随机但有节奏
+  tickMusic(night) {
+    if (!this.ctx || !this.on || !this.music) return;
+    this.scheduleUntil(this.ctx.currentTime + 0.3, night);
+  }
+  scheduleUntil(until, night) {
+    const scale = [0, 2, 4, 7, 9, 12, 14, 16];
+    while (this.nextNote < until) {
+      const t = this.nextNote, beat = this.step % 8;
+      const base = night ? 220 : 261.63;
+      if (beat % 2 === 0 || Math.random() < 0.35) {
+        const n = scale[Math.floor(Math.random() * scale.length)] + (Math.random() < 0.2 ? 12 : 0);
+        const f = base * Math.pow(2, n / 12);
+        this.tone(f, t, night ? 1.4 : 0.6, 'sine', night ? 0.05 : 0.07, null, this.musicGain);
+        this.tone(f * 4, t, 0.08, 'sine', 0.012, null, this.musicGain);
+      }
+      if (beat === 0) this.tone(base / 2 * Math.pow(2, [0, 5, 7, 3][(this.step / 8 | 0) % 4] / 12), t, 1.5, 'triangle', 0.04, null, this.musicGain);
+      this.step++; this.nextNote += night ? 0.42 : 0.28;
+    }
+  }
+}
+
+// ===== shape.js =====
+// ============ 从涂鸦识别身体：栅格化 → 闭运算 → 从外部泛洪 → 最大连通块 ============
+const clampN = (x, a, b) => Math.max(a, Math.min(b, x));
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function rgbHex(c) { return '#' + c.map(v => clampN(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join(''); }
+function mixHex(a, b, t) { const A = hexRgb(a), B = hexRgb(b); return rgbHex(A.map((v, i) => v + (B[i] - v) * t)); }
+
+// 蜡笔颗粒纹理（全局共用）
+let GRAIN = null;
+function grainPattern(ctx) {
+  if (!GRAIN) {
+    const g = document.createElement('canvas'); g.width = g.height = 96; const c = g.getContext('2d');
+    const id = c.createImageData(96, 96);
+    for (let i = 0; i < id.data.length; i += 4) { const v = Math.random(); id.data[i] = id.data[i + 1] = id.data[i + 2] = 0; id.data[i + 3] = v < 0.16 ? 150 + Math.random() * 100 : v < 0.3 ? 60 : 0; }
+    c.putImageData(id, 0, 0); GRAIN = g;
+  }
+  return ctx.createPattern(GRAIN, 'repeat');
+}
+// 平滑后的笔画路径
+function strokePath(ctx, p, sx = 1, sy = 1, ox = 0, oy = 0) {
+  const n = p.length / 2; ctx.beginPath();
+  if (n === 1) { ctx.moveTo(p[0] * sx + ox, p[1] * sy + oy); ctx.lineTo(p[0] * sx + ox + 0.1, p[1] * sy + oy); return; }
+  ctx.moveTo(p[0] * sx + ox, p[1] * sy + oy);
+  for (let i = 1; i < n - 1; i++) {
+    const mx = (p[i * 2] + p[i * 2 + 2]) / 2, my = (p[i * 2 + 1] + p[i * 2 + 3]) / 2;
+    ctx.quadraticCurveTo(p[i * 2] * sx + ox, p[i * 2 + 1] * sy + oy, mx * sx + ox, my * sy + oy);
+  }
+  ctx.lineTo(p[(n - 1) * 2] * sx + ox, p[(n - 1) * 2 + 1] * sy + oy);
+}
+function crayon(ctx, p, color, w, s = 1, ox = 0, oy = 0) {
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = color; ctx.lineWidth = w; strokePath(ctx, p, s, s, ox, oy); ctx.stroke();
+  // 蜡笔边缘的毛糙感：同一条线再用稍细、稍偏的半透明描一遍
+  ctx.globalAlpha = 0.35; ctx.lineWidth = w * 0.55; strokePath(ctx, p, s, s, ox + w * 0.18, oy - w * 0.12); ctx.stroke();
+  ctx.restore();
+}
+
+function analyzeDrawing(strokes, opt = {}) {
+  const targetH = opt.targetH || 120, maxW = opt.maxW || 260;
+  // 包围盒
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, wmax = 4;
+  for (const s of strokes) { wmax = Math.max(wmax, s.w); for (let i = 0; i < s.p.length; i += 2) { x0 = Math.min(x0, s.p[i]); x1 = Math.max(x1, s.p[i]); y0 = Math.min(y0, s.p[i + 1]); y1 = Math.max(y1, s.p[i + 1]); } }
+  x0 -= wmax / 2; y0 -= wmax / 2; x1 += wmax / 2; y1 += wmax / 2;
+  let bw = Math.max(20, x1 - x0), bh = Math.max(20, y1 - y0);
+  // 太扁或太瘦（比如只画了一条线）：把包围盒撑开，后面会补一个椭圆身体
+  const minR = 0.4;
+  if (bh < bw * minR) { const d = bw * minR - bh; y0 -= d / 2; bh += d; }
+  if (bw < bh * minR) { const d = bh * minR - bw; x0 -= d / 2; bw += d; }
+  // 1) 栅格化成遮罩
+  const RES = 128, k = RES / Math.max(bw, bh), mw = Math.max(8, Math.ceil(bw * k)), mh = Math.max(8, Math.ceil(bh * k));
+  const mc = document.createElement('canvas'); mc.width = mw; mc.height = mh; const m = mc.getContext('2d', { willReadFrequently: true });
+  m.lineCap = 'round'; m.lineJoin = 'round'; m.strokeStyle = '#000';
+  for (const s of strokes) { m.lineWidth = Math.max(2.5, s.w * k); strokePath(m, s.p, k, k, -x0 * k, -y0 * k); m.stroke(); }
+  const img = m.getImageData(0, 0, mw, mh).data, N = mw * mh;
+  const ink = new Uint8Array(N); let inkN = 0; for (let i = 0; i < N; i++) if (img[i * 4 + 3] > 40) { ink[i] = 1; inkN++; }
+  // 2) 闭运算（先膨胀再腐蚀），把没接上的线头连起来
+  const morph = (src, r, dil) => {
+    const a = new Uint8Array(N), b = new Uint8Array(N);
+    for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) { let v = dil ? 0 : 1; for (let d = -r; d <= r; d++) { const xx = x + d; const q = xx < 0 || xx >= mw ? (dil ? 0 : 1) : src[y * mw + xx]; if (dil ? q : !q) { v = dil ? 1 : 0; break; } } a[y * mw + x] = v; }
+    for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) { let v = dil ? 0 : 1; for (let d = -r; d <= r; d++) { const yy = y + d; const q = yy < 0 || yy >= mh ? (dil ? 0 : 1) : a[yy * mw + x]; if (dil ? q : !q) { v = dil ? 1 : 0; break; } } b[y * mw + x] = v; }
+    return b;
+  };
+  const close = (r) => morph(morph(ink, r, true), r, false);
+  // 3) 从边界泛洪，走不到的地方就是"身体"
+  const solid = (closed) => {
+    const out = new Uint8Array(N), Q = new Int32Array(N); let qh = 0, qt = 0;
+    const push = (i) => { if (!out[i] && !closed[i]) { out[i] = 1; Q[qt++] = i; } };
+    for (let x = 0; x < mw; x++) { push(x); push((mh - 1) * mw + x); } for (let y = 0; y < mh; y++) { push(y * mw); push(y * mw + mw - 1); }
+    while (qh < qt) { const i = Q[qh++], x = i % mw, y = i / mw | 0; if (x > 0) push(i - 1); if (x < mw - 1) push(i + 1); if (y > 0) push(i - mw); if (y < mh - 1) push(i + mw); }
+    const S = new Uint8Array(N); let n = 0; for (let i = 0; i < N; i++) if (!out[i] || ink[i]) { S[i] = 1; n++; }
+    return { S, n };
+  };
+  let res = solid(close(2)), how = 'closed';
+  if (res.n - inkN < N * 0.1) { res = solid(close(Math.max(4, Math.round(RES * 0.07)))); how = 'bridged'; }
+  if (res.n - inkN < N * 0.1) { // 还是没围起来：用凸包当身体
+    const pts = []; for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) if (ink[y * mw + x]) pts.push([x, y]);
+    const hull = convexHull(pts); m.clearRect(0, 0, mw, mh); m.fillStyle = '#000'; m.beginPath(); hull.forEach((p, i) => i ? m.lineTo(p[0] + 0.5, p[1] + 0.5) : m.moveTo(p[0] + 0.5, p[1] + 0.5)); m.closePath(); m.fill();
+    const d2 = m.getImageData(0, 0, mw, mh).data; const S = new Uint8Array(N); let n = 0; for (let i = 0; i < N; i++) if (d2[i * 4 + 3] > 60 || ink[i]) { S[i] = 1; n++; }
+    // 凸包太扁（比如只画了一条线）就撑成椭圆
+    if (n < N * 0.25) { S.fill(0); n = 0; for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) { const u = (x + 0.5) / mw * 2 - 1, v = (y + 0.5) / mh * 2 - 1; if (u * u + v * v < 1 || ink[y * mw + x]) { S[y * mw + x] = 1; n++; } } }
+    res = { S, n }; how = 'hull';
+  }
+  // 4) 最大连通块 = 身体
+  const S = res.S, lab = new Int32Array(N), Q = new Int32Array(N); let best = 0, bestN = 0, cur = 0;
+  for (let s0 = 0; s0 < N; s0++) {
+    if (!S[s0] || lab[s0]) continue; cur++; let qh = 0, qt = 0; Q[qt++] = s0; lab[s0] = cur; let cnt = 0;
+    while (qh < qt) { const i = Q[qh++]; cnt++; const x = i % mw, y = i / mw | 0; for (const j of [x > 0 ? i - 1 : -1, x < mw - 1 ? i + 1 : -1, y > 0 ? i - mw : -1, y < mh - 1 ? i + mw : -1]) if (j >= 0 && S[j] && !lab[j]) { lab[j] = cur; Q[qt++] = j; } }
+    if (cnt > bestN) { bestN = cnt; best = cur; }
+  }
+  const B = new Uint8Array(N); for (let i = 0; i < N; i++) if (lab[i] === best) B[i] = 1;
+  // 5) 世界尺寸
+  let s = targetH / bh; if (bw * s > maxW) s = maxW / bw;
+  const W = bw * s, H = bh * s, pad = 8, pr = opt.pr || 2;
+  // 6) 画贴图：填色 + 排线 + 原笔画 + 颗粒
+  const lens = {}; for (const st of strokes) { let L = 0; for (let i = 2; i < st.p.length; i += 2) L += Math.hypot(st.p[i] - st.p[i - 2], st.p[i + 1] - st.p[i - 1]); lens[st.c] = (lens[st.c] || 0) + L + 1; }
+  const main = Object.keys(lens).sort((a, b) => lens[b] - lens[a])[0] || '#333333';
+  const fill = opt.fill || mixHex(main, '#ffffff', 0.62), dark = mixHex(main, '#1a1020', 0.45);
+  const sp = document.createElement('canvas'); sp.width = Math.ceil((W + pad * 2) * pr); sp.height = Math.ceil((H + pad * 2) * pr);
+  const c = sp.getContext('2d'); c.scale(pr, pr);
+  const bm = document.createElement('canvas'); bm.width = mw; bm.height = mh; const bc = bm.getContext('2d'); const bid = bc.createImageData(mw, mh);
+  for (let i = 0; i < N; i++) if (B[i]) { bid.data[i * 4] = bid.data[i * 4 + 1] = bid.data[i * 4 + 2] = 255; bid.data[i * 4 + 3] = 255; }
+  bc.putImageData(bid, 0, 0);
+  const fc = document.createElement('canvas'); fc.width = sp.width; fc.height = sp.height; const f = fc.getContext('2d'); f.scale(pr, pr);
+  f.imageSmoothingEnabled = true; f.drawImage(bm, pad, pad, W, H);
+  f.globalCompositeOperation = 'source-in'; f.fillStyle = fill; f.fillRect(0, 0, W + pad * 2, H + pad * 2);
+  f.globalCompositeOperation = 'source-atop'; f.strokeStyle = mixHex(fill, main, 0.35); f.globalAlpha = 0.45; f.lineWidth = 1.6; f.lineCap = 'round';
+  const R = Math.random;
+  for (let d = -H; d < W + H; d += 5.5) { f.beginPath(); f.moveTo(pad + d + R() * 2, pad - 2); f.lineTo(pad + d - H - 4 + R() * 3, pad + H + 2); f.stroke(); }
+  f.globalAlpha = 1; f.globalCompositeOperation = 'source-over';
+  c.drawImage(fc, 0, 0, W + pad * 2, H + pad * 2);
+  for (const st of strokes) crayon(c, st.p, st.c, Math.max(3, st.w * s * 0.9), s, pad - x0 * s, pad - y0 * s);
+  c.globalCompositeOperation = 'destination-out'; c.globalAlpha = 0.22; c.fillStyle = grainPattern(c); c.fillRect(0, 0, W + pad * 2, H + pad * 2);
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  // 7) 轮廓：每一列身体的最上/最下
+  const top = new Float32Array(mw).fill(-1), bot = new Float32Array(mw).fill(-1);
+  for (let x = 0; x < mw; x++) for (let y = 0; y < mh; y++) if (B[y * mw + x]) { if (top[x] < 0) top[x] = y; bot[x] = y; }
+  const col = (fx) => clampN(Math.round(fx * mw - 0.5), 0, mw - 1);
+  const nearestCol = (fx) => { let c0 = col(fx); for (let d = 0; d < mw; d++) { if (top[c0 + d] >= 0 && c0 + d < mw) return c0 + d; if (c0 - d >= 0 && top[c0 - d] >= 0) return c0 - d; } return c0; };
+  const toX = (cx) => pad + (cx + 0.5) / mw * W, toY = (cy) => pad + (cy + 0.5) / mh * H;
+  const topAt = (fx) => { const c0 = nearestCol(fx); return toY(top[c0]); }, botAt = (fx) => { const c0 = nearestCol(fx); return toY(bot[c0]); };
+  const inside = (x, y) => { const cx = Math.floor((x - pad) / W * mw), cy = Math.floor((y - pad) / H * mh); return cx >= 0 && cy >= 0 && cx < mw && cy < mh && B[cy * mw + cx] === 1; };
+  // 身体左右范围
+  let cL = 0, cR = mw - 1; while (cL < mw && top[cL] < 0) cL++; while (cR > 0 && top[cR] < 0) cR--;
+  const fxL = (cL + 0.5) / mw, fxR = (cR + 0.5) / mw, span = fxR - fxL;
+  const fx = (u) => fxL + span * u;
+  return { sprite: sp, pr, W, H, pad, s, how, main, fill, dark, topAt, botAt, inside, fx, bodyW: span * W, bbox: [x0, y0, bw, bh], maskN: bestN / N };
+}
+function convexHull(P) {
+  if (P.length < 3) return P.length ? P.concat([[P[0][0] + 1, P[0][1] + 1]]) : [[0, 0], [1, 0], [0, 1]];
+  P = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of P) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+
+// ===== creature.js =====
+// ============ 小动物：从涂鸦装上腿、眼睛、嘴巴，然后动起来 ============
+const NAMES = ['咕噜', '豆豆', '跳跳', '泡泡', '毛球', '圆圆', '小怪', '叮当', '糯米', '布丁', '皮皮', '乐乐', '果冻', '团子', '小星', '嘟嘟', '胖胖', '蹦蹦', '花花', '呼噜', '奶糖', '球球', '米粒', '闪闪'];
+const TAU = Math.PI * 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth01 = (t) => { t = clampN(t, 0, 1); return t * t * (3 - 2 * t); };
+let CID = 1;
+class Creature {
+  constructor(def, world) {
+    this.def = def; this.id = CID++; this.mode = def.mode || 'walk'; this.name = def.name;
+    this.world = world;
+    const H0 = world.bodyH() * (0.9 + (def.sz || 0.5) * 0.25);
+    this.A = analyzeDrawing(def.strokes, { targetH: H0, maxW: H0 * 2.6 });
+    this.rig();
+    // 状态
+    this.x = 0; this.y = 0; this.air = 0; this.vy = 0; this.vx = 0; this.dir = Math.random() < 0.5 ? 1 : -1;
+    this.phase = 0; this.walkAmt = 0; this.speed = (38 + Math.random() * 22) * (this.mode === 'fly' ? 1.2 : 1);
+    this.act = 'idle'; this.actT = 0; this.target = null; this.think = 0.5 + Math.random();
+    this.blinkT = 2 + Math.random() * 3; this.blink = 0; this.look = [1, 0]; this.lookT = 0;
+    this.sq = 0; this.sqV = 0; this.tilt = 0; this.mouth = 0; this.chew = 0; this.happy = 0; this.sleep = 0;
+    this.bubble = null; this.birth = null; this.legGrow = 1; this.flap = Math.random() * 10; this.meetCD = 3;
+    this.hopT = 0.5; this.flyY = 0;
+  }
+  rig() {
+    const A = this.A, pad = A.pad;
+    const px = (u) => pad + A.fx(u) * A.W;
+    const aspect = A.bodyW / A.H;
+    const n = this.mode === 'walk' ? (aspect > 2.3 ? 6 : aspect > 1.25 ? 4 : 2) : 2;
+    const U = { 2: [0.34, 0.66], 4: [0.18, 0.4, 0.62, 0.84], 6: [0.12, 0.28, 0.44, 0.6, 0.76, 0.92] }[n];
+    const OFF = { 2: [0, 0.5], 4: [0, 0.5, 0.5, 0], 6: [0, 0.5, 0, 0.5, 0, 0.5] }[n];
+    this.legLen = clampN(A.H * (this.mode === 'walk' ? 0.42 : this.mode === 'hop' ? 0.3 : 0.26), 14, 58);
+    this.legs = U.map((u, i) => { const x = px(u); return { hx: x, hy: A.botAt(A.fx(u)) - 3, off: OFF[i], back: n > 2 && i % 2 === 1 }; });
+    this.hipY = Math.max(...this.legs.map(l => l.hy));
+    this.ax = pad + (A.fx(0) + A.fx(1)) / 2 * A.W; // 锚点：身体水平中心，脚底
+    this.ay = this.hipY + this.legLen * 0.92;
+    for (const l of this.legs) { l.hx -= this.ax; l.hy -= this.ay; }
+    this.legW = clampN(this.legLen * 0.14, 3.2, 7);
+    // 眼睛
+    const top = (u) => A.topAt(A.fx(u)), bot = (u) => A.botAt(A.fx(u));
+    let r = clampN(0.085 * Math.min(A.bodyW, A.H), 6, 15);
+    const two = A.bodyW > r * 5.2;
+    const us = two ? [0.6, 0.8] : [0.7];
+    const eyes = us.map(u => { const x = px(u); let rr = r; const room = bot(u) - top(u); if (room < rr * 3.4) rr = Math.max(4, room / 3.6); return { x, y: top(u) + rr + 5, r: rr }; });
+    const er = Math.min(...eyes.map(e => e.r)); eyes.forEach(e => { e.r = er; });
+    const ey = Math.max(...eyes.map(e => e.y)); eyes.forEach(e => { e.y = ey; });
+    this.eyes = eyes.map(e => ({ x: e.x - this.ax, y: e.y - this.ay, r: e.r }));
+    const mu = two ? 0.71 : 0.72, mx = px(mu);
+    const my = Math.min(ey + er * 1.55, bot(mu) - er * 0.6 - 3);
+    this.mouthP = { x: mx - this.ax, y: my - this.ay, w: er * 1.05 };
+    this.cheeks = two ? [{ x: px(0.5) - this.ax, y: ey + er * 1.2 - this.ay }, { x: px(0.9) - this.ax, y: ey + er * 1.2 - this.ay }] : [{ x: px(0.86) - this.ax, y: ey + er * 1.3 - this.ay }];
+    this.cheekR = er * 0.6;
+    const wu = 0.42; this.wing = { x: px(wu) - this.ax, y: top(wu) + (bot(wu) - top(wu)) * 0.25 - this.ay, L: clampN(A.H * 0.75, 30, 90) };
+    this.topY = Math.min(...[0.2, 0.5, 0.8].map(top)) - this.ay; // 头顶（气泡位置）
+    this.halfW = A.bodyW / 2;
+    this.bodyMidY = (this.hipY - this.ay + this.topY) / 2;
+  }
+  // 世界里的缩放（近大远小）
+  get k() { return this.world.depthScale(this.y) * (this.birth ? this.birth.k : 1); }
+  bounds() { const k = this.k; const lift = this.air + this.flyY; return { x0: this.x - this.halfW * k * 1.05, x1: this.x + this.halfW * k * 1.05, y0: this.y - lift + (this.topY - 6) * k, y1: this.y - lift + 4 * k }; }
+  say(text, dur = 2.6) { this.bubble = { text, t: dur }; }
+  // ---------- 行为 ----------
+  update(dt) {
+    const W = this.world;
+    this.flap += dt * (this.mode === 'fly' ? 13 : 0);
+    this.meetCD -= dt;
+    if (this.bubble) { this.bubble.t -= dt; if (this.bubble.t <= 0) this.bubble = null; }
+    // 眨眼
+    this.blinkT -= dt; if (this.blinkT <= 0) { this.blink = 0.16; this.blinkT = 1.8 + Math.random() * 4; }
+    this.blink = Math.max(0, this.blink - dt);
+    // 弹簧：挤压/拉伸
+    this.sqV += (-this.sq * 160 - this.sqV * 11) * dt; this.sq += this.sqV * dt;
+    this.happy = Math.max(0, this.happy - dt); this.chew = Math.max(0, this.chew - dt);
+    // 出生动画
+    if (this.birth) {
+      const b = this.birth; b.t += dt; const T1 = 0.7, T2 = 1.5;
+      if (b.t < T1) { this.x = b.x0 + Math.sin(b.t * 60) * 3 * (b.t / T1); this.y = b.y0; b.k = b.k0; this.legGrow = 0; this.blink = 0.2; }
+      else if (b.t < T2) { const u = smooth01((b.t - T1) / (T2 - T1)); this.x = lerp(b.x0, b.x1, u); this.y = lerp(b.y0, b.y1, u); b.k = Math.exp(lerp(Math.log(b.k0), 0, u)); this.legGrow = u; this.flyY = this.mode === 'fly' ? lerp(0, b.fly1, u) : 0; this.air = (this.mode === 'fly') ? 0 : Math.sin(u * Math.PI) * 60 * (1 - u) ; }
+      else { this.birth = null; this.legGrow = 1; this.air = 30; this.vy = 0; this.sqV = -3; W.onBorn(this); }
+      if (this.birth && !b.popped && b.t > T1) { b.popped = true; W.sparkle(this.x, this.y - 60, 26); sound.magic(); }
+      return;
+    }
+    if (this.act === 'held') { this.updateHeld(dt); return; }
+    // 下落 / 弹跳（被放下或者跳起来）
+    if (this.air > 0 || this.vy < 0) {
+      this.vy += 1500 * dt; this.air -= this.vy * dt;
+      if (this.mode === 'hop' || this.act === 'jump') this.x += this.vx * dt;
+      if (this.air <= 0) {
+        this.air = 0; const imp = Math.abs(this.vy);
+        if (imp > 260 && this.mode !== 'fly') { this.vy = -imp * 0.32; this.sqV = -Math.min(9, imp / 80); if (imp > 500) sound.boing(); }
+        else { this.vy = 0; if (imp > 60) this.sqV = -Math.min(6, imp / 90); if (this.act === 'jump') this.act = 'idle'; }
+      }
+    }
+    // 睡觉
+    const night = W.night > 0.5;
+    if (night && this.act !== 'eat' && this.act !== 'wake') { this.sleep = Math.min(1, this.sleep + dt * 0.4); }
+    else this.sleep = Math.max(0, this.sleep - dt * 1.5);
+    if (this.act === 'wake') { this.actT -= dt; if (this.actT <= 0) this.act = 'idle'; }
+    // 想一想接下来干什么
+    this.think -= dt;
+    const food = W.nearestFood(this);
+    if (food && this.act !== 'eat' && (this.act !== 'jump')) { this.act = 'go'; this.target = { x: food.x - Math.sign(food.x - this.x || 1) * (this.halfW * this.k * 0.75 + 6), y: food.y, food }; }
+    if (this.think <= 0 && (this.act === 'idle' || this.act === 'walk')) {
+      this.think = 1.5 + Math.random() * 3.5;
+      if (this.sleep > 0.8) { this.act = 'idle'; }
+      else if (Math.random() < 0.62) { this.act = 'walk'; const r = W.randomSpot(this); this.target = r; }
+      else if (Math.random() < 0.3) { this.jump(260 + Math.random() * 120); }
+      else { this.act = 'idle'; this.target = null; }
+    }
+    // 移动
+    let moving = false;
+    if ((this.act === 'walk' || this.act === 'go') && this.target && this.sleep < 0.8) {
+      const tgt = this.target, dx = tgt.x - this.x, dy = tgt.y - this.y;
+      const d = Math.hypot(dx, dy * 1.6);
+      if (Math.abs(dx) > 4) this.dir = dx > 0 ? 1 : -1;
+      if (d < 6 || (this.mode === 'hop' && d < 18)) {
+        if (this.act === 'go' && tgt.food && !tgt.food.gone) { this.act = 'eat'; this.actT = 1.6; this.dir = tgt.food.x > this.x ? 1 : -1; }
+        else { this.act = 'idle'; this.target = null; }
+      } else {
+        const sp = this.speed * (this.act === 'go' ? 1.6 : 1) * (0.55 + 0.45 * this.k) * (1 - this.sleep * 0.6);
+        if (this.mode === 'hop') {
+          if (this.air <= 0 && this.vy >= 0) { this.hopT -= dt; if (this.hopT <= 0) { this.hopT = 0.25 + Math.random() * 0.2; this.vx = Math.sign(dx) * Math.min(Math.abs(dx) / 0.5, sp * 2.2); this.vy = -330 - Math.random() * 90; this.air = 0.01; this.sqV = 7; this.y += Math.sign(dy) * Math.min(Math.abs(dy), 40); } }
+        } else {
+          const vx = dx / d * sp, vy = dy / d * sp * 0.6;
+          this.x += vx * dt; this.y += vy * dt; moving = true;
+          this.phase += Math.hypot(vx, vy) * dt / (2 * this.stride());
+        }
+      }
+    }
+    if (this.act === 'eat') {
+      this.actT -= dt; const f = this.target && this.target.food;
+      if (f && !f.gone) { this.chew = 0.2 * (Math.sin(this.actT * 18) > 0 ? 1 : 0.2); if (Math.random() < dt * 6) { sound.chomp(); f.bite(this); } }
+      if (this.actT <= 0 || !f || f.gone) { this.act = 'idle'; this.happy = 1.2; this.think = 1; if (f) { W.heart(this.x, this.y + this.topY * this.k - 10); } }
+    }
+    this.walkAmt = lerp(this.walkAmt, moving ? 1 : 0, 1 - Math.exp(-dt * 8));
+    // 飞行：在天上飘
+    if (this.mode === 'fly') {
+      const want = (this.act === 'eat' || this.act === 'go') ? 40 : (this.sleep > 0.8 ? 0 : W.flyH(this));
+      this.flyY = lerp(this.flyY, want, 1 - Math.exp(-dt * 1.2)) + Math.sin(this.flap * 0.23) * 0.4;
+    }
+    // 眼睛看向
+    this.lookT -= dt;
+    if (this.lookT <= 0) { this.lookT = 0.6 + Math.random() * 1.5; const p = W.lookTarget(this); this.lookAt = p; }
+    // 遇见朋友
+    if (this.meetCD <= 0 && this.act !== 'eat' && this.sleep < 0.5) {
+      const o = W.nearCreature(this);
+      if (o && o.meetCD <= 0) { this.meetCD = o.meetCD = 8 + Math.random() * 6; this.dir = o.x > this.x ? 1 : -1; o.dir = -this.dir; this.jump(220); o.jump(200); this.happy = o.happy = 1.4; W.heart((this.x + o.x) / 2, Math.min(this.y, o.y) - 90 * this.k); sound.giggle(1.1); this.act = o.act = 'idle'; }
+    }
+  }
+  stride() { return clampN(this.legLen * 0.8, 10, 44); }
+  jump(v) { if (this.air > 0 || this.act === 'held') return; this.vy = -v; this.air = 0.01; this.vx = this.mode === 'hop' ? this.dir * 40 : 0; this.sqV = 6; if (this.act !== 'go') this.act = 'jump'; }
+  tap() {
+    sound.giggle(0.9 + Math.random() * 0.3); this.happy = 1.5; this.jump(380); this.say(`我是${this.name}！`);
+    this.world.heart(this.x, this.y + this.topY * this.k - 30); speak(`我是${this.name}`);
+    if (this.world.night > 0.5) { this.act = 'wake'; this.actT = 6; this.sleep = 0; }
+  }
+  // 被抓起来：跟着手指晃
+  grab(px, py) { this.act = 'held'; this.hold = { px, py, vx: 0, vy: 0 }; this.air = 0; this.vy = 0; sound.pop(); this.sqV = 5; this.say('哇！', 1.2); }
+  updateHeld(dt) {
+    const h = this.hold, k = this.k, W = this.world;
+    const tx = h.px, ty = h.py - this.bodyMidY * k; // 手指捏着身体中间，脚在手指下面
+    const cy = this.y - this.air, a = 1 - Math.exp(-dt * 18);
+    const nx = lerp(this.x, tx, a), ny = lerp(cy, ty, a);
+    h.vx = (nx - this.x) / Math.max(dt, 1e-3); this.x = nx;
+    this.y = lerp(this.y, clampN(ny, W.groundTop(), W.groundBot()), 1 - Math.exp(-dt * 10));
+    this.air = Math.max(0, this.y - ny); this.flyY = 0;
+    this.tilt = lerp(this.tilt, clampN(-h.vx / 900, -0.6, 0.6), 1 - Math.exp(-dt * 10));
+    this.phase += dt * 3; this.walkAmt = 0;
+  }
+  drop() { this.act = 'idle'; this.vy = 0; this.tilt = 0; this.think = 0.8; if (this.mode === 'fly') { this.flyY = this.air; this.air = 0; } else if (this.air < 5) this.air = 0; }
+  // ---------- 画 ----------
+  draw(ctx, t) {
+    const A = this.A, k = this.k, dir = this.dir;
+    const lift = this.air + this.flyY + (this.mode === 'fly' ? Math.sin(this.flap * 0.23) * 4 : 0);
+    const sit = this.sleep * this.legLen * 0.5; // 睡觉时趴下
+    const sq = clampN(this.sq * 0.06, -0.3, 0.3);
+    const sx = 1 + sq, sy = 1 - sq;
+    const walkBob = this.walkAmt * Math.abs(Math.sin(this.phase * TAU)) * (this.legLen * 0.07);
+    const tilt = (this.act === 'held' ? this.tilt : this.walkAmt * Math.sin(this.phase * TAU) * 0.035) + (this.mode === 'fly' ? Math.sin(this.flap * 0.23 + 1) * 0.06 : 0);
+    const legScale = this.legGrow;
+    const bodyDrop = (1 - legScale) * this.legLen * 0.9 + sit;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    // 影子
+    const shw = this.halfW * k * (1.1 - Math.min(0.6, (lift) / 300)), sha = 0.18 * (1 - Math.min(0.8, lift / 260)) * (this.birth ? 0 : 1);
+    if (sha > 0.01) { ctx.fillStyle = `rgba(20,40,20,${sha})`; ctx.beginPath(); ctx.ellipse(0, 2, shw, shw * 0.18, 0, 0, TAU); ctx.fill(); }
+    ctx.translate(0, -lift); ctx.scale(dir * k, k);
+    const pivotY = this.hipY - this.ay; // 身体底部
+    const bodyT = (px, py) => { // 身体变换（挤压、倾斜、上下）
+      let x = px, y = py - pivotY; x *= sx; y *= sy; const c = Math.cos(tilt), s = Math.sin(tilt); const X = x * c - y * s, Y = x * s + y * c;
+      return [X, Y + pivotY - walkBob + bodyDrop];
+    };
+    const legPass = (back) => { for (const L of this.legs) if (!!L.back === back) this.drawLeg(ctx, L, bodyT, legScale, back); };
+    if (this.mode === 'fly') this.drawWing(ctx, bodyT, true);
+    legPass(true);
+    // 身体
+    ctx.save();
+    ctx.translate(0, -walkBob + bodyDrop); ctx.translate(0, pivotY); ctx.rotate(tilt); ctx.scale(sx, sy); ctx.translate(0, -pivotY);
+    ctx.drawImage(A.sprite, -this.ax, -this.ay, A.sprite.width / A.pr, A.sprite.height / A.pr);
+    this.drawFace(ctx, t);
+    ctx.restore();
+    legPass(false);
+    if (this.mode === 'fly') this.drawWing(ctx, bodyT, false);
+    ctx.restore();
+    // 睡觉的 Z
+    if (this.sleep > 0.9) { const zt = (t * 0.6 + this.id * 0.37) % 1; ctx.save(); ctx.globalAlpha = Math.sin(zt * Math.PI); ctx.fillStyle = '#e8ecff'; ctx.font = `700 ${Math.round(14 + zt * 10)}px "PingFang SC", sans-serif`; ctx.fillText('Z', this.x + dir * this.halfW * k * 0.5 + zt * 16 * dir, this.y - lift + this.topY * k - zt * 30); ctx.restore(); }
+    // 名字气泡
+    if (this.bubble) this.drawBubble(ctx, this.x, this.y - lift + this.topY * k - 14);
+  }
+  drawLeg(ctx, L, bodyT, g, back) {
+    const len = this.legLen * (0.25 + 0.75 * g);
+    let [hx, hy] = bodyT(L.hx, L.hy);
+    let fx, fy;
+    if (this.act === 'held' || (this.air > 2 && this.mode !== 'hop') || this.mode === 'fly') { // 悬空：腿自然下垂、晃动
+      const sw = Math.sin(this.phase * 5 + L.off * 6) * 0.35 + (this.mode === 'fly' ? Math.sin(this.flap * 0.3 + L.off * 3) * 0.2 : 0);
+      fx = hx + Math.sin(sw) * len * 0.8; fy = hy + Math.cos(sw) * len * 0.85;
+    } else if (this.mode === 'hop') {
+      const ext = this.air > 2 ? 1 : 0.55 - Math.min(0.3, this.sq * 0.05);
+      fx = hx + 2; fy = hy + len * ext;
+    } else {
+      const st = this.stride(), p = ((this.phase + L.off) % 1 + 1) % 1, w = this.walkAmt;
+      let ox, oy;
+      if (p < 0.5) { const u = p / 0.5; ox = st * (0.5 - u); oy = 0; } else { const u = (p - 0.5) / 0.5; ox = st * (u - 0.5); oy = -len * 0.32 * Math.sin(Math.PI * u); }
+      fx = L.hx + ox * w; fy = oy * w; // 脚在地面（y=0）
+      // 趴下时脚收拢
+      fy -= this.sleep * len * 0.1; fx = lerp(fx, hx + len * 0.4, this.sleep * 0.6);
+      if (g < 1) { fx = lerp(hx, fx, g); fy = lerp(hy + len * 0.3, fy, g); }
+    }
+    // 两节腿：简单的反向运动学，膝盖朝前
+    const a = len * 0.56; let dx = fx - hx, dy = fy - hy; let d = Math.hypot(dx, dy) || 1;
+    if (d > a * 1.98) { const s = a * 1.98 / d; fx = hx + dx * s; fy = hy + dy * s; dx *= s; dy *= s; d = a * 1.98; }
+    const h = Math.sqrt(Math.max(0, a * a - d * d / 4)); const mx = (hx + fx) / 2, my = (hy + fy) / 2;
+    const nx = dy / d, ny = -dx / d; const kx = mx + nx * h, ky = my + ny * h;
+    const col = back ? mixHex(this.A.dark, '#000000', 0.25) : this.A.dark;
+    ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = this.legW; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.quadraticCurveTo(kx, ky, fx, fy); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(fx + this.legW * 0.9, fy - this.legW * 0.2, this.legW * 1.35, this.legW * 0.8, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  drawWing(ctx, bodyT, back) {
+    const w = this.wing; const [x, y] = bodyT(w.x, w.y);
+    const f = Math.sin(this.flap) * 0.9 + (back ? 0.25 : 0);
+    ctx.save(); ctx.translate(x + (back ? 4 : -2), y); ctx.rotate(-0.6 - f * 0.8 + (back ? 0.2 : 0)); ctx.scale(1, back ? 0.85 : 1);
+    const L = w.L;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(L * 0.2, -L * 0.45, L * 0.95, -L * 0.35, L, 0); ctx.bezierCurveTo(L * 0.8, L * 0.25, L * 0.3, L * 0.2, 0, 0);
+    ctx.fillStyle = back ? mixHex(this.A.fill, this.A.main, 0.35) : mixHex(this.A.fill, '#ffffff', 0.35); ctx.globalAlpha = back ? 0.9 : 0.95; ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = this.A.main; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(L * 0.15, -L * 0.05); ctx.quadraticCurveTo(L * 0.5, -L * 0.18, L * 0.8, -L * 0.08); ctx.lineWidth = 1.6; ctx.globalAlpha = 0.6; ctx.stroke();
+    ctx.restore();
+  }
+  drawFace(ctx, t) {
+    const closed = this.blink > 0 || this.sleep > 0.85 || (this.birth && this.birth.t < 0.7);
+    const happy = this.happy > 0;
+    // 看向的方向（局部坐标，已翻转）
+    let lx = 0.6, ly = 0.1;
+    if (this.lookAt) { const dx = (this.lookAt[0] - this.x) * this.dir, dy = this.lookAt[1] - (this.y - this.air - this.flyY + this.eyes[0].y * this.k); const d = Math.hypot(dx, dy) || 1; lx = dx / d; ly = dy / d; }
+    if (this.act === 'held') { lx = 0; ly = 0.2; }
+    for (const e of this.eyes) {
+      ctx.save(); ctx.translate(e.x, e.y);
+      if (closed) { ctx.strokeStyle = '#2a1f2d'; ctx.lineWidth = Math.max(2, e.r * 0.28); ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, -e.r * 0.1, e.r * 0.7, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+      else if (happy && this.act !== 'held') { ctx.strokeStyle = '#2a1f2d'; ctx.lineWidth = Math.max(2, e.r * 0.3); ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, e.r * 0.25, e.r * 0.7, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke(); }
+      else {
+        const big = this.act === 'held' ? 1.25 : 1;
+        ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#2a1f2d'; ctx.lineWidth = Math.max(1.6, e.r * 0.18);
+        ctx.beginPath(); ctx.ellipse(0, 0, e.r * big, e.r * 1.08 * big, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        const pr = e.r * 0.52; ctx.fillStyle = '#2a1f2d'; ctx.beginPath(); ctx.arc(lx * e.r * 0.38, ly * e.r * 0.38, pr, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(lx * e.r * 0.38 - pr * 0.35, ly * e.r * 0.38 - pr * 0.4, pr * 0.32, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+    // 腮红
+    ctx.fillStyle = 'rgba(255,120,150,0.35)';
+    for (const c of this.cheeks) { ctx.beginPath(); ctx.ellipse(c.x, c.y, this.cheekR, this.cheekR * 0.6, 0, 0, TAU); ctx.fill(); }
+    // 嘴
+    const m = this.mouthP; ctx.save(); ctx.translate(m.x, m.y); ctx.strokeStyle = '#2a1f2d'; ctx.lineWidth = Math.max(1.8, m.w * 0.2); ctx.lineCap = 'round';
+    if (this.chew > 0.1 || this.act === 'held' || (this.birth && this.birth.t > 0.7)) { ctx.fillStyle = '#7a2438'; ctx.beginPath(); ctx.ellipse(0, m.w * 0.15, m.w * 0.45, m.w * (this.act === 'held' ? 0.5 : 0.38), 0, 0, TAU); ctx.fill(); ctx.stroke(); }
+    else if (happy) { ctx.fillStyle = '#7a2438'; ctx.beginPath(); ctx.arc(0, 0, m.w * 0.55, 0, Math.PI); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#ff8fa3'; ctx.beginPath(); ctx.arc(0, m.w * 0.3, m.w * 0.25, 0, Math.PI); ctx.fill(); }
+    else if (this.sleep > 0.85) { ctx.beginPath(); ctx.arc(0, m.w * 0.1, m.w * 0.18, 0, TAU); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(0, -m.w * 0.15, m.w * 0.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+    ctx.restore();
+  }
+  drawBubble(ctx, x, y) {
+    const b = this.bubble; const a = Math.min(1, b.t * 3, (2.6 - b.t) * 6 + 0.2);
+    ctx.save(); ctx.globalAlpha = clampN(a, 0, 1); ctx.font = '700 18px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+    const w = ctx.measureText(b.text).width + 24, h = 34;
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#3b2f4a'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - w / 2, y - h - 10, w, h, 16) : ctx.rect(x - w / 2, y - h - 10, w, h);
+    ctx.moveTo(x - 7, y - 10); ctx.lineTo(x, y); ctx.lineTo(x + 7, y - 10);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#3b2f4a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.text, x, y - 10 - h / 2 + 1);
+    ctx.restore();
+  }
+}
+
+// ===== world.js =====
+// ============ 小世界：草地、天空、食物、粒子 ============
+const FOODS = ['apple', 'berry', 'cookie', 'cherry'];
+class Food {
+  constructor(world, x, y) { this.w = world; this.x = x; this.y = y; this.air = world.H * 0.9; this.vy = 0; this.type = FOODS[Math.floor(Math.random() * FOODS.length)]; this.size = 1; this.bites = 0; this.gone = false; this.landed = false; this.age = 0; this.rot = (Math.random() - 0.5) * 0.6; }
+  bite(c) { this.bites++; this.size = Math.max(0, 1 - this.bites / 6); for (let i = 0; i < 3; i++) this.w.crumb(this.x, this.y - 10, this.type); if (this.bites >= 6) this.gone = true; }
+  update(dt) {
+    this.age += dt;
+    if (this.air > 0 || this.vy < 0) { this.vy += 1800 * dt; this.air -= this.vy * dt; if (this.air <= 0) { this.air = 0; if (this.vy > 300) { this.vy = -this.vy * 0.35; sound.pop(); } else { this.vy = 0; this.landed = true; } } }
+    if (this.age > 40) this.gone = true;
+  }
+  draw(ctx) {
+    const k = this.w.depthScale(this.y) * this.size, s = 16 * k; if (s < 1) return;
+    ctx.save(); ctx.translate(this.x, this.y - this.air);
+    ctx.fillStyle = 'rgba(20,40,20,0.15)'; ctx.beginPath(); ctx.ellipse(0, this.air + 2, s, s * 0.25, 0, 0, TAU); ctx.fill();
+    ctx.rotate(this.rot);
+    const ol = (c) => { ctx.strokeStyle = c; ctx.lineWidth = 2.2; ctx.stroke(); };
+    if (this.type === 'apple') {
+      ctx.fillStyle = '#ff4d5e'; ctx.beginPath(); ctx.arc(-s * 0.35, -s, s * 0.8, 0, TAU); ctx.arc(s * 0.35, -s, s * 0.8, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, -s, s * 1.05, s * 0.9, 0, 0, TAU); ctx.fill(); ol('#a3202f');
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(-s * 0.45, -s * 1.25, s * 0.18, s * 0.28, -0.5, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#6b4226'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, -s * 1.8); ctx.lineTo(s * 0.1, -s * 2.3); ctx.stroke();
+      ctx.fillStyle = '#4cc36a'; ctx.beginPath(); ctx.ellipse(s * 0.45, -s * 2.1, s * 0.4, s * 0.2, -0.5, 0, TAU); ctx.fill();
+    } else if (this.type === 'berry') {
+      ctx.fillStyle = '#ff3b5c'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(-s * 1.3, -s * 0.8, -s * 1.1, -s * 2, 0, -s * 1.8); ctx.bezierCurveTo(s * 1.1, -s * 2, s * 1.3, -s * 0.8, 0, 0); ctx.fill(); ol('#9c1d35');
+      ctx.fillStyle = '#ffe98a'; for (const [a, b] of [[-0.4, -1.3], [0.35, -1.25], [0, -0.9], [-0.35, -0.7], [0.4, -0.65], [0, -1.55]]) { ctx.beginPath(); ctx.ellipse(a * s, b * s, s * 0.07, s * 0.11, 0, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = '#39b25a'; for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.45; ctx.beginPath(); ctx.ellipse(Math.cos(a) * s * 0.4, -s * 1.8 + Math.sin(a) * s * 0.2, s * 0.3, s * 0.12, a, 0, TAU); ctx.fill(); }
+    } else if (this.type === 'cookie') {
+      ctx.fillStyle = '#e0a458'; ctx.beginPath(); ctx.arc(0, -s, s * 1.05, 0, TAU); ctx.fill(); ol('#9a6428');
+      ctx.fillStyle = '#5b3417'; for (const [a, b] of [[-0.4, -1.3], [0.35, -1.4], [0.1, -0.7], [-0.45, -0.75], [0.5, -0.85]]) { ctx.beginPath(); ctx.arc(a * s, b * s, s * 0.14, 0, TAU); ctx.fill(); }
+    } else {
+      ctx.strokeStyle = '#3f8a3a'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-s * 0.5, -s * 0.6); ctx.quadraticCurveTo(-s * 0.2, -s * 2, s * 0.3, -s * 2.4); ctx.moveTo(s * 0.55, -s * 0.7); ctx.quadraticCurveTo(s * 0.4, -s * 1.8, s * 0.3, -s * 2.4); ctx.stroke();
+      ctx.fillStyle = '#e8203a'; for (const [a] of [[-0.55], [0.6]]) { ctx.beginPath(); ctx.arc(a * s, -s * 0.55, s * 0.6, 0, TAU); ctx.fill(); ol('#8e1224'); }
+    }
+    ctx.restore();
+  }
+}
+class World {
+  constructor(cv) {
+    this.cv = cv; this.ctx = cv.getContext('2d');
+    this.creatures = []; this.foods = []; this.parts = []; this.night = 0; this.nightT = 0; this.t = 0;
+    this.pointer = null; this.pointerT = 0;
+    this.resize();
+  }
+  resize() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.W = this.cv.clientWidth; this.H = this.cv.clientHeight; this.dpr = dpr;
+    this.cv.width = Math.round(this.W * dpr); this.cv.height = Math.round(this.H * dpr);
+    this.horizon = this.H * 0.6;
+    this.buildScenery();
+  }
+  groundTop() { return this.H * 0.7; }
+  groundBot() { return this.H * 0.94; }
+  depthScale(y) { return lerp(0.74, 1.06, clampN((y - this.groundTop()) / (this.groundBot() - this.groundTop()), 0, 1)); }
+  bodyH() { return clampN(Math.min(this.H * 0.19, this.W * 0.27), 60, 150); }
+  flyH(c) { if (!c.skyY || Math.random() < 0.002) c.skyY = this.H * (0.16 + Math.random() * 0.3); return Math.max(0, c.y - c.skyY); }
+  randomSpot(c) { const m = Math.min(this.W * 0.08, 60); return { x: m + Math.random() * (this.W - 2 * m), y: lerp(this.groundTop(), this.groundBot(), Math.random()) }; }
+  nearestFood(c) {
+    let best = null, bd = Infinity;
+    for (const f of this.foods) { if (f.gone || !f.landed) continue; const cl = this.creatures.filter(o => o !== c && o.target && o.target.food === f && (o.act === 'go' || o.act === 'eat')).length; if (cl >= 2) continue; const d = Math.hypot(f.x - c.x, (f.y - c.y) * 2); if (d < bd) { bd = d; best = f; } }
+    if (best && c.target && c.target.food === best) return best;
+    return c.sleep > 0.8 ? null : best;
+  }
+  lookTarget(c) {
+    if (this.pointer && this.t - this.pointerT < 2) return this.pointer;
+    const f = this.foods.find(f => !f.gone); if (f) return [f.x, f.y - 10];
+    const o = this.creatures[Math.floor(Math.random() * this.creatures.length)]; if (o && o !== c && Math.random() < 0.6) return [o.x, o.y - 40];
+    return [c.x + c.dir * 200, c.y - 40 + (Math.random() - 0.5) * 80];
+  }
+  nearCreature(c) {
+    if (c.air > 0 || c.act === 'held' || c.birth) return null;
+    for (const o of this.creatures) { if (o === c || o.birth || o.act === 'held' || o.air > 0 || o.sleep > 0.5) continue; const dx = Math.abs(o.x - c.x), dy = Math.abs(o.y - c.y); if (dx < (o.halfW * o.k + c.halfW * c.k) * 0.9 && dy < 30) return o; }
+    return null;
+  }
+  // ---------- 粒子 ----------
+  heart(x, y) { for (let i = 0; i < 3; i++) this.parts.push({ type: 'heart', x: x + (Math.random() - 0.5) * 30, y, vx: (Math.random() - 0.5) * 30, vy: -60 - Math.random() * 40, life: 1.4 + i * 0.2, age: 0, s: 10 + Math.random() * 6 }); }
+  sparkle(x, y, n = 12) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = 60 + Math.random() * 180; this.parts.push({ type: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, life: 0.8 + Math.random() * 0.6, age: 0, s: 5 + Math.random() * 7, c: ['#ffd84a', '#ff8fd0', '#8fe7ff', '#b6ff8f', '#ffffff'][i % 5] }); } }
+  crumb(x, y, type) { const c = { apple: '#ff6b7a', berry: '#ff4f6d', cookie: '#c68a45', cherry: '#e8203a' }[type]; this.parts.push({ type: 'crumb', x, y, vx: (Math.random() - 0.5) * 120, vy: -120 - Math.random() * 80, life: 0.7, age: 0, s: 2 + Math.random() * 2.5, c }); }
+  dropFood(x, y) {
+    const n = this.foods.filter(f => !f.gone).length; if (n >= 6) { const old = this.foods.find(f => !f.gone); if (old) old.gone = true; }
+    this.foods.push(new Food(this, x, clampN(y, this.groundTop(), this.groundBot()))); sound.whoosh();
+  }
+  onBorn(c) { c.say(`我是${c.name}！`, 3); sound.boing(); speak(`我是${c.name}`); this.heart(c.x, c.y + c.topY * c.k - 20); }
+  hit(x, y) {
+    for (let i = this.creatures.length - 1; i >= 0; i--) { const c = this.sorted ? this.sorted[i] : this.creatures[i]; if (!c || c.birth) continue; const b = c.bounds(); const pad = 14; if (x > b.x0 - pad && x < b.x1 + pad && y > b.y0 - pad && y < b.y1 + pad) return c; }
+    return null;
+  }
+  // ---------- 布景（静态部分缓存） ----------
+  buildScenery() {
+    const W = this.W, H = this.H, cv = document.createElement('canvas'); cv.width = Math.round(W * this.dpr); cv.height = Math.round(H * this.dpr);
+    const c = cv.getContext('2d'); c.scale(this.dpr, this.dpr);
+    const R = mulberry(7);
+    // 远山
+    const hill = (base, amp, col, seed, freq) => { const r = mulberry(seed); const ph = [r() * 6, r() * 6, r() * 6]; c.fillStyle = col; c.beginPath(); c.moveTo(0, H); for (let x = 0; x <= W + 10; x += 10) { const y = base - amp * (0.5 + 0.3 * Math.sin(x / W * TAU * freq + ph[0]) + 0.2 * Math.sin(x / W * TAU * freq * 2.3 + ph[1])); c.lineTo(x, y); } c.lineTo(W, H); c.closePath(); c.fill(); };
+    hill(this.horizon + 10, H * 0.14, '#a8dca0', 3, 1.1);
+    // 远处的棒棒糖树
+    for (let i = 0; i < 6; i++) { const x = W * (0.06 + R() * 0.88), y = this.horizon - H * 0.03 + R() * H * 0.04, s = H * (0.025 + R() * 0.015); c.fillStyle = '#8a6a4a'; c.fillRect(x - s * 0.12, y - s * 1.3, s * 0.24, s * 1.4); c.fillStyle = ['#6fc47d', '#7fd08a', '#5fb870'][i % 3]; c.beginPath(); c.arc(x, y - s * 1.7, s * 0.8, 0, TAU); c.fill(); }
+    hill(this.horizon + H * 0.06, H * 0.08, '#8fd08a', 11, 0.8);
+    // 草地
+    const g = c.createLinearGradient(0, this.horizon, 0, H); g.addColorStop(0, '#86cf7c'); g.addColorStop(1, '#5fb35c');
+    c.fillStyle = g; c.beginPath(); c.moveTo(0, H); for (let x = 0; x <= W + 10; x += 10) c.lineTo(x, this.horizon + H * 0.07 + Math.sin(x / W * 5) * H * 0.012); c.lineTo(W, H); c.closePath(); c.fill();
+    // 草丛
+    c.strokeStyle = 'rgba(40,120,50,0.45)'; c.lineWidth = 1.6; c.lineCap = 'round';
+    const n = Math.round(W * H / 2600);
+    for (let i = 0; i < n; i++) { const x = R() * W, y = this.horizon + H * 0.08 + R() * (H * 0.34), s = 4 + (y - this.horizon) / H * 14; c.beginPath(); c.moveTo(x - s * 0.4, y); c.lineTo(x - s * 0.6, y - s); c.moveTo(x, y); c.lineTo(x, y - s * 1.2); c.moveTo(x + s * 0.4, y); c.lineTo(x + s * 0.7, y - s); c.stroke(); }
+    this.scenery = cv;
+    // 花、云、星星
+    const RF = mulberry(99);
+    this.flowers = Array.from({ length: Math.round(W / 70) + 6 }, () => ({ x: RF() * W, y: this.horizon + H * 0.1 + RF() * H * 0.3, c: ['#ff6fa8', '#ffd14a', '#ffffff', '#b58cff', '#ff8a5c'][Math.floor(RF() * 5)], s: 0.7 + RF() * 0.6, ph: RF() * 6 })).sort((a, b) => a.y - b.y);
+    if (!this.clouds) this.clouds = Array.from({ length: 5 }, (_, i) => ({ x: RF() * W, y: H * (0.07 + RF() * 0.25), s: 0.6 + RF() * 0.8, v: 6 + RF() * 10 }));
+    this.stars = Array.from({ length: 70 }, () => ({ x: RF() * W, y: RF() * this.horizon * 0.9, s: 0.6 + RF() * 1.6, ph: RF() * 6 }));
+    this.flies = Array.from({ length: 16 }, () => ({ x: RF() * W, y: this.horizon + RF() * H * 0.3, ph: RF() * 6, sp: 0.5 + RF() }));
+  }
+  // ---------- 每帧 ----------
+  update(dt) {
+    this.t += dt;
+    this.night = lerp(this.night, this.nightT, 1 - Math.exp(-dt * 1.2));
+    for (const c of this.creatures) c.update(dt);
+    for (const f of this.foods) f.update(dt);
+    this.foods = this.foods.filter(f => !f.gone);
+    for (const p of this.parts) { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.type === 'crumb') p.vy += 600 * dt; else if (p.type === 'spark') { p.vx *= 0.94; p.vy = p.vy * 0.94 + 30 * dt; } else p.vy *= 0.99; }
+    this.parts = this.parts.filter(p => p.age < p.life);
+    for (const c of this.clouds) { c.x += c.v * dt; if (c.x > this.W + 120 * c.s) c.x = -120 * c.s; }
+  }
+  draw() {
+    const ctx = this.ctx, W = this.W, H = this.H, t = this.t, N = this.night;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    // 天空
+    const sky = ctx.createLinearGradient(0, 0, 0, this.horizon + H * 0.1);
+    sky.addColorStop(0, mixHex('#6ec3ff', '#0c1a48', N)); sky.addColorStop(1, mixHex('#dff4ff', '#34508f', N));
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    // 星星
+    if (N > 0.05) { for (const s of this.stars) { ctx.globalAlpha = N * (0.5 + 0.5 * Math.sin(t * 2 + s.ph)); ctx.fillStyle = '#fff8d8'; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, TAU); ctx.fill(); } ctx.globalAlpha = 1; }
+    // 太阳 / 月亮
+    const R = Math.min(W, H) * 0.07, sx = W * 0.84, sy = H * 0.15;
+    if (N < 0.95) this.drawSun(ctx, sx, sy + N * 60, R, 1 - N, t);
+    if (N > 0.05) this.drawMoon(ctx, sx, sy + (1 - N) * 60, R, N);
+    // 云
+    for (const c of this.clouds) this.drawCloud(ctx, c.x, c.y, c.s, N);
+    ctx.drawImage(this.scenery, 0, 0, W, H);
+    // 花
+    for (const f of this.flowers) this.drawFlower(ctx, f, t);
+    // 夜晚：给地面罩一层蓝
+    if (N > 0.02) { ctx.fillStyle = `rgba(16,28,80,${0.5 * N})`; ctx.fillRect(0, this.horizon - H * 0.2, W, H); }
+    // 食物 + 小动物，按远近排序
+    const list = [...this.foods.map(f => ({ y: f.y, f })), ...this.creatures.map(c => ({ y: c.y + (c.act === 'held' ? 1000 : 0) + (c.birth ? 2000 : 0), c }))].sort((a, b) => a.y - b.y);
+    this.sorted = list.filter(o => o.c).map(o => o.c);
+    for (const o of list) { if (o.f) o.f.draw(ctx); else o.c.draw(ctx, t); }
+    // 萤火虫
+    if (N > 0.3) { for (const f of this.flies) { const x = f.x + Math.sin(t * f.sp + f.ph) * 40, y = f.y + Math.sin(t * f.sp * 1.3 + f.ph * 2) * 20; const a = N * (0.5 + 0.5 * Math.sin(t * 3 + f.ph)); const g = ctx.createRadialGradient(x, y, 0, x, y, 12); g.addColorStop(0, `rgba(230,255,140,${a})`); g.addColorStop(1, 'rgba(230,255,140,0)'); ctx.fillStyle = g; ctx.fillRect(x - 12, y - 12, 24, 24); } }
+    // 粒子
+    for (const p of this.parts) this.drawPart(ctx, p);
+  }
+  drawSun(ctx, x, y, R, a, t) {
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y);
+    ctx.save(); ctx.rotate(t * 0.2); ctx.fillStyle = '#ffd84a';
+    for (let i = 0; i < 12; i++) { ctx.rotate(TAU / 12); ctx.beginPath(); ctx.moveTo(R * 1.15, -R * 0.12); ctx.lineTo(R * 1.55 + Math.sin(t * 3 + i) * R * 0.08, 0); ctx.lineTo(R * 1.15, R * 0.12); ctx.fill(); }
+    ctx.restore();
+    ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill(); ctx.strokeStyle = '#f5b82e'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = '#8a5a14'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(-R * 0.35, -R * 0.1, R * 0.16, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(R * 0.35, -R * 0.1, R * 0.16, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, R * 0.12, R * 0.4, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,130,100,0.4)'; ctx.beginPath(); ctx.arc(-R * 0.6, R * 0.2, R * 0.15, 0, TAU); ctx.arc(R * 0.6, R * 0.2, R * 0.15, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  drawMoon(ctx, x, y, R, a) {
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y);
+    const g = ctx.createRadialGradient(0, 0, R * 0.5, 0, 0, R * 2.4); g.addColorStop(0, 'rgba(255,250,210,0.35)'); g.addColorStop(1, 'rgba(255,250,210,0)'); ctx.fillStyle = g; ctx.fillRect(-R * 2.5, -R * 2.5, R * 5, R * 5);
+    ctx.fillStyle = '#fff4c2'; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(220,205,150,0.6)'; ctx.beginPath(); ctx.arc(R * 0.35, -R * 0.35, R * 0.18, 0, TAU); ctx.arc(-R * 0.4, R * 0.4, R * 0.12, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#8a7a44'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(-R * 0.3, -R * 0.05, R * 0.15, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(R * 0.3, -R * 0.05, R * 0.15, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, R * 0.3, R * 0.12, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
+  drawCloud(ctx, x, y, s, N) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = N > 0.5 ? 'rgba(170,185,230,0.35)' : `rgba(255,255,255,${0.92 - N * 0.5})`;
+    ctx.beginPath(); for (const [a, b, r] of [[-50, 8, 26], [-20, -8, 34], [18, -12, 30], [48, 4, 24], [0, 12, 30]]) { ctx.moveTo(a + r, b); ctx.arc(a, b, r, 0, TAU); } ctx.fill();
+    ctx.restore();
+  }
+  drawFlower(ctx, f, t) {
+    const k = this.depthScale(f.y) * f.s, sw = Math.sin(t * 1.5 + f.ph) * 0.12;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(sw); ctx.scale(k, k);
+    ctx.strokeStyle = '#3f9a45'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -22); ctx.stroke();
+    ctx.fillStyle = f.c; for (let i = 0; i < 5; i++) { const a = i / 5 * TAU + t * 0.1; ctx.beginPath(); ctx.ellipse(Math.cos(a) * 6, -24 + Math.sin(a) * 6, 5, 3.5, a, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#ffcc33'; ctx.beginPath(); ctx.arc(0, -24, 3.5, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  drawPart(ctx, p) {
+    const a = 1 - p.age / p.life; ctx.save(); ctx.globalAlpha = clampN(a * 1.5, 0, 1); ctx.translate(p.x, p.y);
+    if (p.type === 'heart') { const s = p.s * (0.8 + 0.4 * Math.sin(p.age * 8)); ctx.fillStyle = '#ff5c8a'; ctx.beginPath(); ctx.moveTo(0, s * 0.35); ctx.bezierCurveTo(-s, -s * 0.3, -s * 0.5, -s * 1.1, 0, -s * 0.5); ctx.bezierCurveTo(s * 0.5, -s * 1.1, s, -s * 0.3, 0, s * 0.35); ctx.fill(); }
+    else if (p.type === 'spark') { const s = p.s * a; ctx.fillStyle = p.c; ctx.rotate(p.age * 4); ctx.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? s * 0.35 : s; const an = i / 8 * TAU; ctx.lineTo(Math.cos(an) * r, Math.sin(an) * r); } ctx.closePath(); ctx.fill(); }
+    else { ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(0, 0, p.s, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+function mulberry(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// ===== app.js =====
+// ============ 画板、小世界的交互、保存 ============
+const $ = (s) => document.querySelector(s);
+const sound = new KidAudio();
+const world = new World($('#world'));
+const PALETTE = ['#ff4d5e', '#ff9a3c', '#ffd23f', '#3fcf6b', '#36b8f5', '#5b6cff', '#b05cff', '#6b4a3a'];
+const ST = { color: PALETTE[5], mode: 'walk', strokes: [], cur: null, drawing: true, demo: null };
+const MAXZOO = 10;
+
+// ---------- 语音 ----------
+function speak(text) {
+  if (!sound.on || !('speechSynthesis' in window) || window.__noSpeak) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text); u.lang = 'zh-CN'; u.rate = 1.05; u.pitch = 1.7; u.volume = 1;
+    const v = speechSynthesis.getVoices().find(v => /zh[-_]CN/i.test(v.lang)) || speechSynthesis.getVoices().find(v => /^zh/i.test(v.lang)); if (v) u.voice = v;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch (e) { }
+}
+
+// ---------- 画板 ----------
+const paper = $('#paper'), ink = $('#ink'), pctx = paper.getContext('2d'), ictx = ink.getContext('2d');
+let PR = { x: 0, y: 0, w: 0, h: 0 }, DPR = 1;
+function layoutPaper() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const W = window.innerWidth, H = window.innerHeight;
+  for (const c of [paper, ink]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+  const bar = $('#drawBar').getBoundingClientRect(), top = $('#drawTitle').getBoundingClientRect();
+  const m = Math.min(24, W * 0.04);
+  PR = { x: m, y: top.bottom + 10, w: W - m * 2, h: Math.max(120, bar.top - top.bottom - 20) };
+  // 纸
+  pctx.setTransform(DPR, 0, 0, DPR, 0, 0); pctx.clearRect(0, 0, W, H);
+  pctx.save(); pctx.shadowColor = 'rgba(0,0,0,0.18)'; pctx.shadowBlur = 18; pctx.shadowOffsetY = 6;
+  pctx.fillStyle = '#fffaf0'; roundRect(pctx, PR.x, PR.y, PR.w, PR.h, 26); pctx.fill(); pctx.restore();
+  pctx.save(); roundRect(pctx, PR.x, PR.y, PR.w, PR.h, 26); pctx.clip();
+  pctx.strokeStyle = 'rgba(120,160,220,0.13)'; pctx.lineWidth = 1.2;
+  for (let y = PR.y + 34; y < PR.y + PR.h; y += 34) { pctx.beginPath(); pctx.moveTo(PR.x, y); pctx.lineTo(PR.x + PR.w, y); pctx.stroke(); }
+  pctx.globalCompositeOperation = 'destination-out'; pctx.globalAlpha = 0.06; pctx.fillStyle = grainPattern(pctx); pctx.fillRect(PR.x, PR.y, PR.w, PR.h);
+  pctx.restore();
+  // 提示框
+  const hs = Math.min(PR.w, PR.h) * 0.55, hint = $('#hint');
+  hint.style.width = hs * 1.25 + 'px'; hint.style.height = hs + 'px'; hint.style.left = (PR.x + PR.w / 2 - hs * 0.625) + 'px'; hint.style.top = (PR.y + PR.h / 2 - hs * 0.55) + 'px';
+  redrawInk();
+}
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+const penW = () => clampN(Math.min(window.innerWidth, window.innerHeight) * 0.022, 7, 12);
+function redrawInk() {
+  const W = window.innerWidth, H = window.innerHeight;
+  ictx.setTransform(DPR, 0, 0, DPR, 0, 0); ictx.clearRect(0, 0, W, H);
+  ictx.save(); roundRect(ictx, PR.x, PR.y, PR.w, PR.h, 26); ictx.clip();
+  for (const s of ST.strokes) crayon(ictx, s.p, s.c, s.w);
+  if (ST.cur) crayon(ictx, ST.cur.p, ST.cur.c, ST.cur.w);
+  ictx.globalCompositeOperation = 'destination-out'; ictx.globalAlpha = 0.2; ictx.fillStyle = grainPattern(ictx); ictx.fillRect(PR.x, PR.y, PR.w, PR.h);
+  ictx.restore();
+  const ok = inkAmount() > 60; $('#bAlive').classList.toggle('off', !ok); $('#bAlive').classList.toggle('ready', ok);
+  $('#hint').classList.toggle('gone', ST.strokes.length > 0 || !!ST.cur);
+}
+function inkAmount() { let L = 0; for (const s of ST.strokes) for (let i = 2; i < s.p.length; i += 2) L += Math.hypot(s.p[i] - s.p[i - 2], s.p[i + 1] - s.p[i - 1]); return L; }
+const inPaper = (x, y) => x > PR.x && x < PR.x + PR.w && y > PR.y && y < PR.y + PR.h;
+ink.addEventListener('pointerdown', (e) => {
+  sound.init(); if (ST.demo) return;
+  if (!inPaper(e.clientX, e.clientY)) return;
+  try { ink.setPointerCapture(e.pointerId); } catch (err) { }
+  ST.cur = { c: ST.color, w: penW(), p: [e.clientX, e.clientY], id: e.pointerId }; redrawInk();
+});
+ink.addEventListener('pointermove', (e) => {
+  const s = ST.cur; if (!s || s.id !== e.pointerId) return;
+  const x = clampN(e.clientX, PR.x + 4, PR.x + PR.w - 4), y = clampN(e.clientY, PR.y + 4, PR.y + PR.h - 4);
+  const n = s.p.length; const d = Math.hypot(x - s.p[n - 2], y - s.p[n - 1]); if (d < 2) return;
+  s.p.push(x, y); sound.scribble(d); redrawInk();
+});
+const endStroke = (e) => { const s = ST.cur; if (!s || s.id !== e.pointerId) return; ST.cur = null; delete s.id; ST.strokes.push(s); redrawInk(); };
+ink.addEventListener('pointerup', endStroke); ink.addEventListener('pointercancel', endStroke);
+function buildPalette() {
+  const box = $('#palette'); box.innerHTML = '';
+  for (const c of PALETTE) { const i = document.createElement('i'); i.style.background = c; i.classList.toggle('on', c === ST.color); i.onclick = () => { ST.color = c; sound.pop(); buildPalette(); }; box.appendChild(i); }
+}
+$('#bUndo').onclick = () => { if (ST.demo) return; ST.strokes.pop(); sound.pop(); redrawInk(); };
+$('#bClear').onclick = () => { if (ST.demo) return; ST.strokes = []; sound.whoosh(); redrawInk(); };
+document.querySelectorAll('#modes .kbtn').forEach(b => b.onclick = () => { ST.mode = b.dataset.mode; document.querySelectorAll('#modes .kbtn').forEach(x => x.classList.toggle('on', x === b)); sound.pop(); speak({ walk: '走路', hop: '蹦蹦跳', fly: '飞起来' }[ST.mode]); });
+function setMode(m) { ST.mode = m; document.querySelectorAll('#modes .kbtn').forEach(x => x.classList.toggle('on', x.dataset.mode === m)); }
+
+// ---------- 示范：自动画一只 ----------
+function demoStrokes(kind) {
+  const cx = PR.x + PR.w / 2, cy = PR.y + PR.h / 2, r = Math.min(PR.w, PR.h) * 0.26, w = penW(); const out = [];
+  const pick = () => PALETTE[Math.floor(Math.random() * 7)];
+  const c1 = pick(); let c2 = pick(); while (c2 === c1) c2 = pick();
+  const loop = (fx, fy, n = 70, over = 0.12, jit = 0.03) => { const p = []; for (let i = 0; i <= n * (1 + over); i++) { const a = i / n * TAU; const j = 1 + Math.sin(a * 3 + 1) * jit; p.push(fx(a) * j, fy(a) * j); } return p; };
+  const circ = (x, y, rr) => ({ c: c2, w: w * 0.9, p: loop((a) => x + Math.cos(a) * rr, (a) => y + Math.sin(a) * rr, 24, 0.1, 0) });
+  if (kind === 'ball') {
+    out.push({ c: c1, w, p: loop((a) => cx + Math.cos(a - 2) * r * 1.1, (a) => cy + Math.sin(a - 2) * r * 0.95) });
+    out.push(circ(cx - r * 0.45, cy + r * 0.25, r * 0.16), circ(cx + r * 0.05, cy + r * 0.45, r * 0.12), circ(cx - r * 0.1, cy - r * 0.05, r * 0.1));
+    for (let i = -1; i <= 1; i++) out.push({ c: c1, w, p: [cx + i * r * 0.18, cy - r * 0.92, cx + i * r * 0.3, cy - r * 1.3] });
+  } else if (kind === 'worm') {
+    const L = r * 2.3, h = r * 0.62;
+    out.push({ c: c1, w, p: loop((a) => cx + Math.cos(a) * L * (Math.abs(Math.cos(a)) > 0.2 ? 1 : 1), (a) => cy + Math.sin(a) * h + Math.cos(a * 2) * h * 0.08, 90, 0.1, 0.02) });
+    for (let i = -2; i <= 1; i++) out.push({ c: c2, w: w * 0.9, p: [cx + i * L * 0.3 + L * 0.1, cy - h * 0.85, cx + i * L * 0.3 + L * 0.02, cy, cx + i * L * 0.3 + L * 0.1, cy + h * 0.85] });
+    out.push({ c: c1, w, p: [cx + L * 0.75, cy - h * 0.9, cx + L * 0.8, cy - h * 1.6, cx + L * 0.9, cy - h * 1.75] });
+  } else if (kind === 'bird') {
+    out.push({ c: c1, w, p: loop((a) => cx + Math.cos(a) * r * 1.05 - (Math.cos(a) < 0 ? Math.cos(a) * Math.cos(a) * r * 0.35 : 0), (a) => cy + Math.sin(a) * r * 0.8) });
+    out.push({ c: '#ff9a3c', w, p: [cx + r * 0.98, cy - r * 0.2, cx + r * 1.45, cy - r * 0.05, cx + r * 0.98, cy + r * 0.12] });
+    out.push({ c: c2, w, p: [cx - r * 1.3, cy - r * 0.1, cx - r * 1.75, cy - r * 0.45, cx - r * 1.6, cy, cx - r * 1.8, cy + r * 0.35, cx - r * 1.3, cy + r * 0.15] });
+    out.push({ c: c2, w: w * 0.9, p: [cx - r * 0.3, cy + r * 0.1, cx, cy + r * 0.35, cx + r * 0.3, cy + r * 0.1] });
+  } else { // jelly：扁扁的圆顶
+    const p = []; const n = 60; for (let i = 0; i <= n; i++) { const a = Math.PI + i / n * Math.PI; p.push(cx + Math.cos(a) * r * 1.15, cy + r * 0.35 + Math.sin(a) * r * 1.0); }
+    for (let i = 0; i <= 20; i++) { const u = i / 20; p.push(cx + r * 1.15 - u * r * 2.3, cy + r * 0.35 + Math.sin(u * Math.PI * 4) * r * 0.08); }
+    p.push(p[0], p[1]); out.push({ c: c1, w, p });
+    out.push(circ(cx - r * 0.5, cy - r * 0.1, r * 0.13), circ(cx + r * 0.35, cy - r * 0.3, r * 0.1), circ(cx - r * 0.05, cy + r * 0.1, r * 0.09));
+  }
+  return out;
+}
+const DEMOS = [['ball', 'walk'], ['worm', 'walk'], ['bird', 'fly'], ['jelly', 'hop']];
+let demoI = Math.floor(Math.random() * DEMOS.length);
+function runDemo(kind) {
+  if (ST.demo) return;
+  const d = kind ? DEMOS.find(q => q[0] === kind) : DEMOS[demoI++ % DEMOS.length];
+  ST.strokes = []; setMode(d[1]);
+  const todo = demoStrokes(d[0]); const total = todo.reduce((a, s) => a + s.p.length / 2, 0);
+  ST.demo = { todo, si: 0, pi: 0, rate: total / 2.2 };
+  sound.magic(); speak('看我画一只');
+}
+function stepDemo(dt) {
+  const D = ST.demo; if (!D) return;
+  D.acc = (D.acc || 0) + D.rate * dt; let n = Math.floor(D.acc); D.acc -= n;
+  while (n-- > 0 && D.si < D.todo.length) {
+    const s = D.todo[D.si];
+    if (!ST.cur) ST.cur = { c: s.c, w: s.w, p: [] };
+    ST.cur.p.push(s.p[D.pi * 2], s.p[D.pi * 2 + 1]); D.pi++;
+    if (D.pi * 2 >= s.p.length) { ST.strokes.push({ c: ST.cur.c, w: ST.cur.w, p: ST.cur.p }); ST.cur = null; D.si++; D.pi = 0; }
+  }
+  if (D.si >= D.todo.length) { ST.demo = null; ST.cur = null; }
+  redrawInk();
+}
+
+// ---------- 变活！ ----------
+function usedNames() { return new Set(world.creatures.map(c => c.name)); }
+function newName() { const u = usedNames(); const free = NAMES.filter(n => !u.has(n)); return (free.length ? free : NAMES)[Math.floor(Math.random() * (free.length || NAMES.length))]; }
+function bringAlive() {
+  if (ST.demo) return;
+  if (inkAmount() <= 60) { const b = $('#bAlive'); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); speak('先画一只小动物吧'); return; }
+  sound.init();
+  const def = { strokes: ST.strokes.map(s => ({ c: s.c, w: s.w, p: s.p.map(v => Math.round(v * 10) / 10) })), mode: ST.mode, name: newName(), sz: Math.random() };
+  const c = new Creature(def, world);
+  const A = c.A, [bx0, by0] = A.bbox;
+  // 从画纸上的位置"跳"进世界
+  const x0 = bx0 + (c.ax - A.pad) / A.s, y0 = by0 + (c.ay - A.pad) / A.s;
+  // 找一个离其他小动物远一点的落脚点
+  let spot = null, best = -1;
+  for (let i = 0; i < 12; i++) { const s = world.randomSpot(c); s.x = clampN(s.x, world.W * 0.12, world.W * 0.88); let dmin = 1e9; for (const o of world.creatures) dmin = Math.min(dmin, Math.hypot(o.x - s.x, (o.y - s.y) * 2)); dmin += (1 - Math.abs(s.x - x0) / world.W) * 40; if (dmin > best) { best = dmin; spot = s; } }
+  c.x = x0; c.y = y0;
+  const k0 = 1 / (A.s * world.depthScale(y0));
+  c.skyY = world.H * (0.18 + Math.random() * 0.22);
+  c.birth = { t: 0, x0, y0, x1: spot.x, y1: spot.y, k0, k: k0, fly1: c.mode === 'fly' ? Math.max(0, spot.y - c.skyY) : 0 };
+  world.creatures.push(c);
+  // 超过上限：最早的那只挥手离开
+  const alive = world.creatures.filter(q => !q.leaving);
+  if (alive.length > MAXZOO) { const old = alive[0]; old.leaving = true; old.say('拜拜！', 2); }
+  ST.strokes = []; ST.cur = null;
+  showWorld(true);
+  saveZoo();
+}
+function showWorld(fromBirth) {
+  ST.drawing = false; ST.frozen = false; document.body.classList.remove('drawing'); $('#drawLayer').classList.add('hide');
+  updateCount();
+  if (fromBirth) setTip(0, 4.5);
+}
+function showDraw() {
+  sound.init(); ST.drawing = true; document.body.classList.add('drawing'); $('#drawLayer').classList.remove('hide');
+  $('#bBackWorld').style.display = world.creatures.length ? '' : 'none';
+  layoutPaper(); speak('画一只小动物吧');
+}
+$('#bAlive').onclick = bringAlive;
+$('#bDemo').onclick = () => { sound.init(); runDemo(); };
+$('#bDraw').onclick = () => { sound.pop(); showDraw(); };
+$('#bBackWorld').onclick = () => { sound.pop(); showWorld(false); };
+
+// ---------- 小世界里的手势 ----------
+const cv = $('#world'); let press = null;
+cv.addEventListener('pointerdown', (e) => {
+  sound.init(); if (ST.drawing) return;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  const x = e.clientX, y = e.clientY; world.pointer = [x, y]; world.pointerT = world.t;
+  const c = world.hit(x, y);
+  press = { id: e.pointerId, x0: x, y0: y, t0: performance.now(), c, grabbed: false };
+  if (c) { press.hold = setTimeout(() => { if (press && press.c === c && !press.grabbed) { press.grabbed = true; c.grab(x, y); } }, 260); }
+});
+cv.addEventListener('pointermove', (e) => {
+  const x = e.clientX, y = e.clientY; world.pointer = [x, y]; world.pointerT = world.t;
+  if (!press || press.id !== e.pointerId) return;
+  if (press.c) {
+    if (!press.grabbed && Math.hypot(x - press.x0, y - press.y0) > 8) { press.grabbed = true; clearTimeout(press.hold); press.c.grab(x, y); }
+    if (press.grabbed && press.c.hold) { press.c.hold.px = x; press.c.hold.py = y; }
+  }
+});
+const endPress = (e) => {
+  if (!press || press.id !== e.pointerId) return; clearTimeout(press.hold);
+  const x = e.clientX, y = e.clientY;
+  if (press.c) { if (press.grabbed) press.c.drop(); else press.c.tap(); }
+  else if (Math.hypot(x - press.x0, y - press.y0) < 12) {
+    if (y > world.horizon + world.H * 0.04) { world.dropFood(x, y); hideTipSoon(); }
+    else { world.sparkle(x, y, 10); sound.giggle(1.6); }
+  }
+  press = null;
+};
+cv.addEventListener('pointerup', endPress); cv.addEventListener('pointercancel', endPress);
+$('#bNight').onclick = () => {
+  sound.init(); world.nightT = world.nightT > 0.5 ? 0 : 1; sound.pop();
+  $('#bNight').classList.toggle('on', world.nightT > 0.5);
+  $('#bNight span').textContent = world.nightT > 0.5 ? '天亮' : '天黑';
+  speak(world.nightT > 0.5 ? '天黑了，小动物要睡觉了' : '天亮啦');
+};
+$('#bSound').onclick = () => { sound.init(); const on = sound.toggle(); $('#bSound').classList.toggle('on', on); $('#bSound .w').style.display = on ? '' : 'none'; if (!on && window.speechSynthesis) speechSynthesis.cancel(); };
+$('#bPhoto').onclick = () => {
+  sound.shutter(); const f = $('#flash'); f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 60);
+  const url = world.cv.toDataURL('image/png');
+  $('#photoImg').src = url; $('#photoSave').href = url;
+  setTimeout(() => $('#photoBox').classList.add('show'), 350);
+};
+$('#photoClose').onclick = () => $('#photoBox').classList.remove('show');
+$('#bHelp').onclick = () => $('#help').classList.add('show');
+$('#helpClose').onclick = () => $('#help').classList.remove('show');
+
+// ---------- 提示 ----------
+const TIPS = ['点一点草地，给它们喂好吃的', '点一下小动物，它会告诉你名字', '按住小动物，可以把它拎起来', '按右上角的月亮，天就黑了'];
+let tipI = 0, tipT = 0, tipHold = 0;
+function setTip(i, hold = 5) { tipI = i; tipHold = hold; $('#tipW').textContent = TIPS[i % TIPS.length]; $('#tipW').classList.remove('gone'); }
+function hideTipSoon() { tipHold = Math.min(tipHold, 1); }
+function updateCount() { const n = world.creatures.filter(c => !c.leaving).length; $('#count').textContent = n ? `小世界里有 ${n} 只小动物` : ''; }
+
+// ---------- 保存 ----------
+function saveZoo() {
+  try { localStorage.setItem('doodlezoo.v1', JSON.stringify(world.creatures.filter(c => !c.leaving).map(c => c.def))); } catch (e) { }
+}
+function loadZoo() {
+  let defs = []; try { defs = JSON.parse(localStorage.getItem('doodlezoo.v1') || '[]') || []; } catch (e) { defs = []; }
+  for (const d of defs.slice(-MAXZOO)) {
+    try { const c = new Creature(d, world); const s = world.randomSpot(c); c.x = s.x; c.y = s.y; c.flyY = c.mode === 'fly' ? world.flyH(c) : 0; world.creatures.push(c); } catch (e) { console.warn(e); }
+  }
+}
+
+// ---------- 主循环 ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!window.__manual) tick(dt);
+  requestAnimationFrame(frame);
+}
+function tick(dt) {
+  stepDemo(dt);
+  if (ST.drawing && ST.frozen) { sound.tickMusic(world.night > 0.5); return; } // 画画时背后的世界先定格，省电
+  world.update(dt);
+  // 离开的小动物走出屏幕后移除
+  for (const c of world.creatures) if (c.leaving && !c.birth) { c.act = 'walk'; c.target = { x: c.x < world.W / 2 ? -300 : world.W + 300, y: c.y }; c.sleep = 0; }
+  const before = world.creatures.length;
+  world.creatures = world.creatures.filter(c => !(c.leaving && (c.x < -200 || c.x > world.W + 200)));
+  if (world.creatures.length !== before) { updateCount(); saveZoo(); }
+  world.draw(); ST.frozen = ST.drawing;
+  sound.tickMusic(world.night > 0.5);
+  if (!ST.drawing) {
+    tipHold -= dt;
+    if (tipHold <= 0 && !$('#tipW').classList.contains('gone')) { $('#tipW').classList.add('gone'); tipT = 10; }
+    tipT -= dt; if (tipT <= 0 && $('#tipW').classList.contains('gone') && world.creatures.length) { setTip(++tipI, 4); }
+  }
+}
+window.addEventListener('resize', () => { world.resize(); layoutPaper(); });
+
+// ---------- 启动 ----------
+buildPalette();
+loadZoo();
+if (world.creatures.length) { showWorld(false); document.body.classList.remove('drawing'); setTip(0, 5); }
+else { document.body.classList.add('drawing'); ST.drawing = true; $('#bBackWorld').style.display = 'none'; }
+layoutPaper(); updateCount();
+requestAnimationFrame((t) => { last = t; requestAnimationFrame(frame); });
+// 测试 / 录屏钩子
+window.__finishDemo = () => { let k = 0; while (ST.demo && k++ < 10000) stepDemo(0.05); }; window.__ST = ST; window.__world = world; window.__tick = tick; window.__runDemo = runDemo; window.__alive = bringAlive; window.__showDraw = showDraw;
+window.__renderAudio = async (dur, events) => {
+  const sr = 44100, oc = new OfflineAudioContext(2, Math.ceil(sr * dur), sr);
+  const a = new KidAudio(); a.init(oc); a.on = true; a.ctx = oc;
+  let rs = 11; const rnd = () => { rs = (rs * 16807) % 2147483647; return rs / 2147483647; }; const mr = Math.random; Math.random = rnd;
+  a.nextNote = 0.3; a.scheduleUntil(dur - 0.8, false);
+  for (const [t, name, arg] of events) { a.tOff = t; a[name](arg); }
+  Math.random = mr;
+  const buf = await oc.startRendering();
+  const L0 = buf.getChannelData(0), R0 = buf.getChannelData(1), n = L0.length;
+  const wav = new DataView(new ArrayBuffer(44 + n * 4));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) wav.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); wav.setUint32(4, 36 + n * 4, true); w(8, 'WAVEfmt '); wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 2, true);
+  wav.setUint32(24, sr, true); wav.setUint32(28, sr * 4, true); wav.setUint16(32, 4, true); wav.setUint16(34, 16, true); w(36, 'data'); wav.setUint32(40, n * 4, true);
+  for (let i = 0; i < n; i++) { wav.setInt16(44 + i * 4, clampN(L0[i], -1, 1) * 32767, true); wav.setInt16(46 + i * 4, clampN(R0[i], -1, 1) * 32767, true); }
+  let bin = ''; const u8 = new Uint8Array(wav.buffer); for (let i = 0; i < u8.length; i += 32768) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 32768));
+  return btoa(bin);
+};
+
+</script>
+</body>
+</html>

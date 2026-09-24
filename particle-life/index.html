@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#030308">
+<title>粒子生命</title>
+<style>
+:root {
+  --glass: rgba(10, 12, 24, 0.66);
+  --glass-2: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.13);
+  --text: #eef0f8;
+  --dim: rgba(238, 240, 248, 0.6);
+  --accent: #7df3c0;
+  --accent-2: #8fc8ff;
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #030308; color: var(--text); font-family: var(--font); }
+#c { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; touch-action: none; }
+.glass { background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(12px) saturate(1.2); -webkit-backdrop-filter: blur(12px) saturate(1.2); border-radius: 14px; }
+button { font: inherit; }
+.btn { appearance: none; border: 1px solid var(--line); background: var(--glass-2); color: var(--text); font-size: 13px; padding: 6px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: background .15s, transform .08s; touch-action: manipulation; }
+.btn:hover { background: rgba(255,255,255,0.15); }
+.btn:active { transform: scale(0.96); }
+.btn.on { background: rgba(125,243,192,0.2); border-color: rgba(125,243,192,0.6); }
+.btn.pri { background: linear-gradient(135deg, #7df3c0, #56b8ff); color: #04121a; border-color: transparent; font-weight: 600; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+
+#hud { position: fixed; left: 14px; top: 14px; padding: 9px 14px; display: flex; align-items: baseline; gap: 10px; pointer-events: none; }
+#hud b { font-size: 17px; letter-spacing: 1px; }
+#hud b i { font-style: normal; background: linear-gradient(90deg, #ff6b8a, #ffd166, #7df3c0, #6cb8ff, #b98cff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#stat { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+#uname { font-size: 12px; color: var(--accent); }
+
+#panel { position: fixed; left: 14px; top: 62px; width: 344px; max-height: calc(100vh - 76px); max-height: calc(100dvh - 76px); overflow-y: auto; padding: 10px 14px 14px; scrollbar-width: thin; }
+.tabs { display: flex; gap: 4px; position: sticky; top: -10px; margin: -10px -14px 8px; padding: 10px 14px 8px; background: rgba(12,14,28,0.92); z-index: 2; border-radius: 14px 14px 0 0; }
+.tabs .btn { flex: 1; padding: 6px 0; }
+.tabs .btn.tab.on { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.35); }
+#pMin { flex: none; padding: 6px 10px; }
+#panel.min section { display: none !important; }
+#panel.min { overflow: hidden; }
+.lead { font-size: 12.5px; line-height: 1.7; color: var(--dim); }
+.lead b { color: var(--text); font-weight: 600; }
+.note { font-size: 12px; line-height: 1.7; color: var(--dim); margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.05); }
+.note b { color: var(--accent); font-weight: 600; }
+
+#mx { display: grid; gap: 3px; justify-content: start; margin-top: 10px; user-select: none; -webkit-user-select: none; touch-action: none; }
+#mx .hd { display: grid; place-items: center; }
+#mx .hd i { width: 14px; height: 14px; border-radius: 50%; display: block; box-shadow: 0 0 8px currentColor; }
+#mx .corner { font-size: 10px; color: var(--dim); line-height: 1.1; text-align: center; }
+#mx .cell { aspect-ratio: 1; border-radius: 6px; display: grid; place-items: center; font-size: 11px; font-variant-numeric: tabular-nums; cursor: ns-resize; border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px #000; transition: outline-color .1s; outline: 2px solid transparent; }
+#mx .cell.sel { outline-color: #fff; }
+#mxInfo { font-size: 12.5px; margin-top: 8px; min-height: 20px; }
+#mxInfo .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; margin: 0 2px; }
+
+#presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pre { text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.05); color: var(--text); cursor: pointer; }
+.pre:hover { background: rgba(255,255,255,0.12); }
+.pre.on { border-color: rgba(125,243,192,0.7); background: rgba(125,243,192,0.1); }
+.pre b { display: block; font-size: 13.5px; }
+.pre span { display: block; font-size: 11px; color: var(--dim); margin-top: 2px; line-height: 1.45; }
+.pre .dots { display: flex; gap: 3px; margin-top: 5px; }
+.pre .dots i { width: 8px; height: 8px; border-radius: 50%; }
+.share { display: flex; gap: 6px; margin-top: 10px; }
+.share input { flex: 1; min-width: 0; padding: 6px 9px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,0.07); color: var(--text); font: 12px ui-monospace, Menlo, monospace; }
+.sec { font-size: 12px; color: var(--dim); margin: 14px 0 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+
+.prm { margin-top: 10px; }
+.pl { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: var(--dim); }
+.pl b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+.ps { font-size: 11px; color: var(--accent-2); margin-top: 2px; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.2); outline: none; margin: 8px 0 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid var(--accent); cursor: pointer; }
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--accent); }
+
+#tools { position: fixed; right: 14px; top: 14px; padding: 6px; display: flex; flex-direction: column; gap: 5px; }
+#tools .btn { width: 64px; padding: 7px 0; font-size: 12.5px; text-align: center; }
+#tools .sep { height: 1px; background: var(--line); margin: 2px 4px; }
+#brush { display: none; flex-direction: column; gap: 5px; align-items: center; padding: 4px 0; }
+#brush.show { display: flex; }
+#brush i { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; box-shadow: 0 0 8px currentColor; }
+#brush i.on { border-color: #fff; }
+
+#toast { position: fixed; left: 50%; top: 18%; transform: translate(-50%, -8px); text-align: center; pointer-events: none; opacity: 0; transition: opacity .5s, transform .5s; text-shadow: 0 2px 14px #000, 0 0 30px #000; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast .a { font-size: 26px; font-weight: 800; letter-spacing: 2px; }
+#toast .b { font-size: 13px; color: var(--dim); margin-top: 4px; }
+
+#help { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,0.5); z-index: 10; padding: 16px; }
+#help.show { display: grid; }
+#help .card { width: min(580px, 100%); max-height: 86vh; overflow: auto; padding: 18px 20px; }
+#help h2 { margin: 0 0 8px; font-size: 19px; }
+#help h3 { font-size: 13.5px; color: var(--accent); margin: 14px 0 6px; }
+#help p, #help li { font-size: 13px; line-height: 1.75; }
+#help ul { margin: 0; padding-left: 18px; }
+#help .fx { display: block; margin: 8px 0; width: 100%; max-width: 420px; }
+#helpClose { float: right; }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; background: #030308; z-index: 20; transition: opacity .8s; color: var(--dim); }
+#loading.gone { opacity: 0; pointer-events: none; }
+
+@media (max-width: 760px) {
+  #hud { left: 8px; top: 8px; right: 8px; padding: 7px 11px; flex-wrap: wrap; row-gap: 2px; }
+  #hud b { font-size: 15px; }
+  #tools { right: 8px; left: 8px; top: auto; bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--panel-h, 46px) + 6px); flex-direction: row; overflow-x: auto; scrollbar-width: none; padding: 5px; }
+  #tools::-webkit-scrollbar { display: none; }
+  #tools .btn { width: auto; flex: none; padding: 6px 11px; }
+  #tools .sep { width: 1px; height: auto; margin: 4px 2px; }
+  #brush { flex-direction: row; padding: 0 4px; }
+  #panel { left: 8px; right: 8px; top: auto; bottom: max(8px, env(safe-area-inset-bottom)); width: auto; max-height: 44vh; max-height: 44dvh; padding: 8px 12px 12px; }
+  .tabs { top: -8px; margin: -8px -12px 8px; padding: 8px 12px 6px; }
+  #toast { top: 14%; } #toast .a { font-size: 21px; }
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud" class="glass"><b><i>粒子生命</i></b><span id="uname"></span><span id="stat"></span></div>
+
+<div id="panel" class="glass">
+  <div class="tabs"><button class="btn tab on" data-tab="rules">规则</button><button class="btn tab" data-tab="world">宇宙</button><button class="btn tab" data-tab="params">参数</button><button class="btn" id="pMin">收起</button></div>
+  <section id="t-rules">
+    <div class="lead">每一格是<b>这一行</b>的颜色对<b>这一列</b>颜色的感觉：<span style="color:#7df3c0">绿＝想靠近</span>，<span style="color:#ff7b8f">红＝想躲开</span>。在格子上<b>上下拖动</b>改数值，<b>点一下</b>在几个常用值之间切换。</div>
+    <div id="mx"></div>
+    <div id="mxInfo"></div>
+    <div class="row"><button class="btn pri" id="bRand">随机新规则</button><button class="btn" id="bMut">变异一点</button><button class="btn" id="bSym">改成对称</button><button class="btn" id="bNeg">全部反转</button></div>
+    <div class="note">小实验：点「改成对称」，让每两种颜色对彼此的感觉一样——追逐和游动几乎会立刻停下来。<b>生命感来自不对等：我想靠近你，你却想躲开我。</b></div>
+  </section>
+  <section id="t-world" hidden>
+    <div id="presets"></div>
+    <div class="row"><button class="btn" id="bAuto">自动漫游</button><button class="btn" id="b3d">切换到 3D</button><button class="btn" id="bReset">重新撒一遍</button></div>
+    <div class="sec">规则码：复制下来发给别人，粘贴就能还原同一个宇宙</div>
+    <div class="share"><input id="code" readonly aria-label="规则码"><button class="btn" id="bCopy">复制</button><button class="btn" id="bPaste">粘贴</button></div>
+  </section>
+  <section id="t-params" hidden><div id="prms"></div></section>
+</div>
+
+<div id="tools" class="glass">
+  <button class="btn" data-tool="view" title="拖动平移 / 3D 下旋转">视角</button>
+  <button class="btn on" data-tool="stir" title="拖动搅动粒子">搅动</button>
+  <button class="btn" data-tool="pull" title="按住吸引">吸引</button>
+  <button class="btn" data-tool="push" title="按住推开">推开</button>
+  <button class="btn" data-tool="paint" title="按住画出某种颜色的粒子">画笔</button>
+  <div id="brush"></div>
+  <div class="sep"></div>
+  <button class="btn" id="bPause">暂停</button>
+  <button class="btn" id="bSound">声音</button>
+  <button class="btn" id="bFull">全屏</button>
+  <button class="btn" id="bHelp">说明</button>
+</div>
+
+<div id="toast"><div class="a"></div><div class="b"></div></div>
+
+<div id="help"><div class="card glass">
+  <button class="btn" id="helpClose">关闭</button>
+  <h2>粒子生命是怎么"活"起来的</h2>
+  <p>屏幕上的几千个光点，每一个都只知道一件事：<b>附近的每种颜色，我是喜欢还是讨厌</b>。没有大脑、没有目标，全靠"规则"那张表。</p>
+  <svg class="fx" viewBox="0 0 420 150" aria-label="力与距离的关系">
+    <line x1="30" y1="75" x2="400" y2="75" stroke="rgba(255,255,255,.35)"/>
+    <line x1="30" y1="12" x2="30" y2="140" stroke="rgba(255,255,255,.35)"/>
+    <polyline points="30,135 120,75" fill="none" stroke="#ff7b8f" stroke-width="2.5"/><polyline points="120,75 250,20 380,75 400,75" fill="none" stroke="#7df3c0" stroke-width="2.5"/>
+    <polyline points="120,75 250,125 380,75" fill="none" stroke="#ff7b8f" stroke-width="2.5" stroke-dasharray="5 4"/>
+    <text x="36" y="148" fill="#ff7b8f" font-size="11">太近：谁都互相推开</text>
+    <text x="190" y="14" fill="#7df3c0" font-size="11">表里是正数：拉近</text>
+    <text x="190" y="143" fill="#ff7b8f" font-size="11">负数：推远</text>
+    <text x="360" y="68" fill="rgba(255,255,255,.6)" font-size="11">太远：不理</text>
+    <text x="396" y="90" fill="rgba(255,255,255,.6)" font-size="11" text-anchor="end">距离 →</text>
+  </svg>
+  <ul>
+    <li>离得太近，所有粒子都互相推开，所以它们不会挤成一个点。</li>
+    <li>中等距离，按表里的数值互相吸引或排斥；超过「作用距离」就互不相干。</li>
+    <li>表不对称时（红喜欢蓝、蓝讨厌红），红会一直追、蓝会一直逃——这违反了牛顿第三定律，于是系统会自己"生出"能量，出现游动、分裂、捕食一样的行为。</li>
+    <li>这不是动画，是真的在逐帧计算：每个粒子每一帧都要和附近几十上百个邻居算一遍力。</li>
+  </ul>
+  <h3>怎么玩</h3>
+  <ul>
+    <li>「宇宙」里挑一个预设，或者在「规则」里点「随机新规则」——每一张随机表都是一个没人见过的宇宙。</li>
+    <li>右侧工具：搅动、吸引、推开，或者用画笔涂上某种颜色，看它们怎么被吸收或排斥。</li>
+    <li>滚轮 / 双指缩放可以凑近看一个"生物"；2D 世界是首尾相接的，往边上走会从另一边出来。</li>
+    <li>「自动漫游」会每隔二十秒换一个宇宙，适合挂着当屏保。</li>
+  </ul>
+  <h3>快捷键</h3>
+  <p><kbd>空格</kbd> 暂停 · <kbd>R</kbd> 随机新规则 · <kbd>M</kbd> 变异 · <kbd>S</kbd> 重新撒 · <kbd>3</kbd> 切换 2D/3D · <kbd>A</kbd> 自动漫游</p>
+</div></div>
+<div id="loading">正在播种……</div>
+<script>
+"use strict";
+const SIM_SRC = "\"use strict\";\n// ============ 粒子生命：模拟核心（2D 周期世界 / 3D 球形培养皿，均匀网格加速） ============\nconst MAXT = 8;\nclass Life {\n  constructor(cap) {\n    this.cap = cap; this.dim = 2; this.n = 0; this.m = 6;\n    this.K = new Float32Array(MAXT * MAXT);\n    this.rMax = 0.08; this.beta = 0.3; this.half = 0.04; this.forceK = 10; this.dt = 0.02;\n    this.wx = 1; this.wy = 1; this.R = 0.5;\n    const F = () => new Float32Array(cap);\n    this.x = F(); this.y = F(); this.z = F(); this.vx = F(); this.vy = F(); this.vz = F(); this.t = new Uint8Array(cap);\n    this.x2 = F(); this.y2 = F(); this.z2 = F(); this.vx2 = F(); this.vy2 = F(); this.vz2 = F(); this.t2 = new Uint8Array(cap);\n    this.ax = F(); this.ay = F(); this.az = F();\n    this.cell = new Int32Array(cap);\n    this.cnt = new Int32Array(1); this.start = new Int32Array(1); this.fill = new Int32Array(1);\n    this.gx = 1; this.gy = 1; this.gz = 1;\n    this.tools = []; // 外力：{x,y,z,r,mode,dx,dy,dz,s}\n    this.parent = new Int32Array(cap); this.size = new Int32Array(cap);\n    this.stepCount = 0;\n  }\n  rnd() { return this._rng ? this._rng() : Math.random(); }\n  setSeed(seed) { let a = seed >>> 0 || 1; this._rng = () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }\n  // 撒粒子\n  scatter(n) {\n    this.n = Math.min(n, this.cap);\n    for (let i = 0; i < this.n; i++) this.place(i, this.rnd() * this.m | 0);\n  }\n  place(i, type) {\n    this.t[i] = type; this.vx[i] = this.vy[i] = this.vz[i] = 0;\n    if (this.dim === 2) { this.x[i] = this.rnd() * this.wx; this.y[i] = this.rnd() * this.wy; this.z[i] = 0; }\n    else { let px, py, pz; do { px = this.rnd() * 2 - 1; py = this.rnd() * 2 - 1; pz = this.rnd() * 2 - 1; } while (px * px + py * py + pz * pz > 1); const s = this.R * 0.9; this.x[i] = px * s; this.y[i] = py * s; this.z[i] = pz * s; }\n  }\n  // 改变粒子总数（保留已有的）\n  resize(n) {\n    n = Math.min(Math.max(0, n | 0), this.cap);\n    for (let i = this.n; i < n; i++) this.place(i, this.rnd() * this.m | 0);\n    this.n = n;\n  }\n  retype() { for (let i = 0; i < this.n; i++) if (this.t[i] >= this.m) this.t[i] = this.rnd() * this.m | 0; }\n  _grid(nc) { if (this.cnt.length < nc) { this.cnt = new Int32Array(nc); this.start = new Int32Array(nc + 1); this.fill = new Int32Array(nc); } }\n  // 按网格排序（计数排序），粒子数据按格子连续存放\n  _sort() {\n    const n = this.n, nc = this.gx * this.gy * this.gz; this._grid(nc);\n    const cnt = this.cnt, start = this.start, cell = this.cell;\n    cnt.fill(0, 0, nc);\n    const { x, y, z } = this;\n    if (this.dim === 2) {\n      const sx = this.gx / this.wx, sy = this.gy / this.wy, gx = this.gx, gy = this.gy;\n      for (let i = 0; i < n; i++) { let cx = x[i] * sx | 0, cy = y[i] * sy | 0; if (cx >= gx) cx = gx - 1; if (cy >= gy) cy = gy - 1; if (cx < 0) cx = 0; if (cy < 0) cy = 0; const c = cy * gx + cx; cell[i] = c; cnt[c]++; }\n    } else {\n      const g = this.gx, s = g / (2 * this.R * 1.08), o = this.R * 1.08;\n      for (let i = 0; i < n; i++) {\n        let cx = (x[i] + o) * s | 0, cy = (y[i] + o) * s | 0, cz = (z[i] + o) * s | 0;\n        cx = cx < 0 ? 0 : cx >= g ? g - 1 : cx; cy = cy < 0 ? 0 : cy >= g ? g - 1 : cy; cz = cz < 0 ? 0 : cz >= g ? g - 1 : cz;\n        const c = (cz * g + cy) * g + cx; cell[i] = c; cnt[c]++;\n      }\n    }\n    start[0] = 0; for (let c = 0; c < nc; c++) start[c + 1] = start[c] + cnt[c];\n    const fill = this.fill; fill.set(start.subarray(0, nc));\n    const { vx, vy, vz, t, x2, y2, z2, vx2, vy2, vz2, t2 } = this;\n    for (let i = 0; i < n; i++) { const k = fill[cell[i]]++; x2[k] = x[i]; y2[k] = y[i]; z2[k] = z[i]; vx2[k] = vx[i]; vy2[k] = vy[i]; vz2[k] = vz[i]; t2[k] = t[i]; }\n    [this.x, this.x2] = [x2, x]; [this.y, this.y2] = [y2, y]; [this.z, this.z2] = [z2, z];\n    [this.vx, this.vx2] = [vx2, vx]; [this.vy, this.vy2] = [vy2, vy]; [this.vz, this.vz2] = [vz2, vz]; [this.t, this.t2] = [t2, t];\n  }\n  step() {\n    const rm = this.rMax;\n    if (this.dim === 2) { this.gx = Math.max(3, Math.floor(this.wx / rm)); this.gy = Math.max(3, Math.floor(this.wy / rm)); this.gz = 1; }\n    else { const g = Math.max(3, Math.floor(2 * this.R * 1.08 / rm)); this.gx = this.gy = this.gz = g; }\n    this._sort();\n    if (this.dim === 2) this._force2(); else this._force3();\n    this._integrate();\n    this.stepCount++;\n  }\n  _force2() {\n    const n = this.n, gx = this.gx, gy = this.gy, wx = this.wx, wy = this.wy, hx = wx / 2, hy = wy / 2;\n    const rm = this.rMax, rm2 = rm * rm, irm = 1 / rm, beta = this.beta, ib = 1 / beta, i1b = 1 / (1 - beta);\n    const { x, y, t, K, start, ax, ay } = this; const fk = rm * this.forceK;\n    for (let cy = 0; cy < gy; cy++) for (let cx = 0; cx < gx; cx++) {\n      const c = cy * gx + cx, a0 = start[c], a1 = start[c + 1]; if (a0 === a1) continue;\n      // 9 个邻格的范围\n      const rs = this._rs || (this._rs = new Int32Array(18)); let nr = 0;\n      for (let dy = -1; dy <= 1; dy++) { const ny = (cy + dy + gy) % gy; for (let dx = -1; dx <= 1; dx++) { const nx = (cx + dx + gx) % gx, nc = ny * gx + nx; rs[nr++] = start[nc]; rs[nr++] = start[nc + 1]; } }\n      for (let i = a0; i < a1; i++) {\n        const xi = x[i], yi = y[i], row = t[i] * MAXT; let fx = 0, fy = 0;\n        for (let q = 0; q < 18; q += 2) {\n          const b1 = rs[q + 1];\n          for (let j = rs[q]; j < b1; j++) {\n            let dx = x[j] - xi, dy = y[j] - yi;\n            if (dx > hx) dx -= wx; else if (dx < -hx) dx += wx;\n            if (dy > hy) dy -= wy; else if (dy < -hy) dy += wy;\n            const d2 = dx * dx + dy * dy; if (d2 >= rm2 || d2 === 0) continue;\n            const d = Math.sqrt(d2), r = d * irm;\n            const f = r < beta ? r * ib - 1 : K[row + t[j]] * (1 - Math.abs(2 * r - 1 - beta) * i1b);\n            const k = f / d; fx += dx * k; fy += dy * k;\n          }\n        }\n        ax[i] = fx * fk; ay[i] = fy * fk;\n      }\n    }\n  }\n  _force3() {\n    const g = this.gx, rm = this.rMax, rm2 = rm * rm, irm = 1 / rm, beta = this.beta, ib = 1 / beta, i1b = 1 / (1 - beta);\n    const { x, y, z, t, K, start, ax, ay, az } = this; const fk = rm * this.forceK;\n    const rs = this._rs3 || (this._rs3 = new Int32Array(54));\n    for (let cz = 0; cz < g; cz++) for (let cy = 0; cy < g; cy++) for (let cx = 0; cx < g; cx++) {\n      const c = (cz * g + cy) * g + cx, a0 = start[c], a1 = start[c + 1]; if (a0 === a1) continue;\n      let nr = 0;\n      for (let dz = -1; dz <= 1; dz++) { const nz = cz + dz; if (nz < 0 || nz >= g) continue; for (let dy = -1; dy <= 1; dy++) { const ny = cy + dy; if (ny < 0 || ny >= g) continue; for (let dx = -1; dx <= 1; dx++) { const nx = cx + dx; if (nx < 0 || nx >= g) continue; const nc = (nz * g + ny) * g + nx; rs[nr++] = start[nc]; rs[nr++] = start[nc + 1]; } } }\n      for (let i = a0; i < a1; i++) {\n        const xi = x[i], yi = y[i], zi = z[i], row = t[i] * MAXT; let fx = 0, fy = 0, fz = 0;\n        for (let q = 0; q < nr; q += 2) {\n          const b1 = rs[q + 1];\n          for (let j = rs[q]; j < b1; j++) {\n            const dx = x[j] - xi, dy = y[j] - yi, dz = z[j] - zi;\n            const d2 = dx * dx + dy * dy + dz * dz; if (d2 >= rm2 || d2 === 0) continue;\n            const d = Math.sqrt(d2), r = d * irm;\n            const f = r < beta ? r * ib - 1 : K[row + t[j]] * (1 - Math.abs(2 * r - 1 - beta) * i1b);\n            const k = f / d; fx += dx * k; fy += dy * k; fz += dz * k;\n          }\n        }\n        ax[i] = fx * fk; ay[i] = fy * fk; az[i] = fz * fk;\n      }\n    }\n  }\n  _integrate() {\n    const n = this.n, dt = this.dt, fr = Math.pow(0.5, dt / this.half);\n    const { x, y, z, vx, vy, vz, ax, ay, az } = this;\n    // 外力工具\n    for (const T of this.tools) this._tool(T);\n    if (this.dim === 2) {\n      const wx = this.wx, wy = this.wy;\n      for (let i = 0; i < n; i++) {\n        let u = vx[i] * fr + ax[i] * dt, v = vy[i] * fr + ay[i] * dt;\n        const s2 = u * u + v * v; if (s2 > 4) { const k = 2 / Math.sqrt(s2); u *= k; v *= k; }\n        vx[i] = u; vy[i] = v;\n        let px = x[i] + u * dt, py = y[i] + v * dt;\n        if (px < 0) px += wx; else if (px >= wx) px -= wx;\n        if (py < 0) py += wy; else if (py >= wy) py -= wy;\n        x[i] = px; y[i] = py;\n      }\n    } else {\n      const R = this.R, wall = 30;\n      for (let i = 0; i < n; i++) {\n        let px = x[i], py = y[i], pz = z[i];\n        const r = Math.sqrt(px * px + py * py + pz * pz);\n        let bx = ax[i], by = ay[i], bz = az[i];\n        if (r > R) { const k = -(r - R) * wall / r; bx += px * k; by += py * k; bz += pz * k; }\n        let u = vx[i] * fr + bx * dt, v = vy[i] * fr + by * dt, w = vz[i] * fr + bz * dt;\n        const s2 = u * u + v * v + w * w; if (s2 > 4) { const k = 2 / Math.sqrt(s2); u *= k; v *= k; w *= k; }\n        vx[i] = u; vy[i] = v; vz[i] = w;\n        px += u * dt; py += v * dt; pz += w * dt;\n        const r2 = Math.sqrt(px * px + py * py + pz * pz); if (r2 > R * 1.15) { const k = R * 1.15 / r2; px *= k; py *= k; pz *= k; }\n        x[i] = px; y[i] = py; z[i] = pz;\n      }\n    }\n  }\n  // 工具：搅动 / 吸引 / 排斥（作用在加速度上）\n  _tool(T) {\n    const n = this.n, { x, y, z, ax, ay, az } = this, r2 = T.r * T.r, two = this.dim === 2;\n    const wx = this.wx, wy = this.wy;\n    for (let i = 0; i < n; i++) {\n      let dx = x[i] - T.x, dy = y[i] - T.y, dz = two ? 0 : z[i] - T.z;\n      if (two) { if (dx > wx / 2) dx -= wx; else if (dx < -wx / 2) dx += wx; if (dy > wy / 2) dy -= wy; else if (dy < -wy / 2) dy += wy; }\n      const d2 = dx * dx + dy * dy + dz * dz; if (d2 > r2) continue;\n      const fall = 1 - Math.sqrt(d2) / T.r;\n      if (T.mode === 'stir') { ax[i] += T.dx * T.s * fall; ay[i] += T.dy * T.s * fall; az[i] += (T.dz || 0) * T.s * fall; }\n      else { const d = Math.sqrt(d2) + 1e-4, k = (T.mode === 'pull' ? -1 : 1) * T.s * fall / d; ax[i] += dx * k; ay[i] += dy * k; az[i] += dz * k; }\n    }\n  }\n  // 把半径 r 内的粒子染成 / 生成指定种类\n  paint(px, py, pz, r, type, add) {\n    const n = this.n, r2 = r * r;\n    let changed = 0;\n    for (let i = 0; i < n && changed < 40; i++) {\n      let dx = this.x[i] - px, dy = this.y[i] - py, dz = this.dim === 2 ? 0 : this.z[i] - pz;\n      if (this.dim === 2) { if (dx > this.wx / 2) dx -= this.wx; else if (dx < -this.wx / 2) dx += this.wx; if (dy > this.wy / 2) dy -= this.wy; else if (dy < -this.wy / 2) dy += this.wy; }\n      if (dx * dx + dy * dy + dz * dz < r2 && this.t[i] !== type) { this.t[i] = type; changed++; }\n    }\n    if (add) {\n      for (let k = 0; k < 6 && this.n < this.cap; k++) {\n        const i = this.n++; const a = this.rnd() * 6.2832, q = Math.sqrt(this.rnd()) * r;\n        this.t[i] = type; this.vx[i] = this.vy[i] = this.vz[i] = 0;\n        this.x[i] = px + Math.cos(a) * q; this.y[i] = py + Math.sin(a) * q; this.z[i] = pz + (this.dim === 3 ? (this.rnd() - 0.5) * r : 0);\n        if (this.dim === 2) { this.x[i] = (this.x[i] % this.wx + this.wx) % this.wx; this.y[i] = (this.y[i] % this.wy + this.wy) % this.wy; }\n      }\n    }\n  }\n  // 团块统计（并查集，连接距离 link*rMax），返回 {count, inFrac, sizes}\n  clusters(link = 0.5, minSize = 12) {\n    const n = this.n; if (!n) return { count: 0, inFrac: 0, big: [] };\n    const P = this.parent, S = this.size; for (let i = 0; i < n; i++) { P[i] = i; S[i] = 1; }\n    const find = (a) => { while (P[a] !== a) { P[a] = P[P[a]]; a = P[a]; } return a; };\n    const L = link * this.rMax, L2 = L * L; const { x, y, z, start } = this;\n    const two = this.dim === 2, gx = this.gx, gy = this.gy, gz = this.gz, wx = this.wx, wy = this.wy;\n    // 用上一步的网格（粒子已按格子排序）\n    for (let cz = 0; cz < gz; cz++) for (let cy = 0; cy < gy; cy++) for (let cx = 0; cx < gx; cx++) {\n      const c = (cz * gy + cy) * gx + cx, a0 = start[c], a1 = start[c + 1]; if (a0 === a1) continue;\n      for (let dz = two ? 0 : -1; dz <= (two ? 0 : 1); dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {\n        let nx = cx + dx, ny = cy + dy, nz = cz + dz;\n        if (two) { nx = (nx + gx) % gx; ny = (ny + gy) % gy; } else if (nx < 0 || ny < 0 || nz < 0 || nx >= gx || ny >= gy || nz >= gz) continue;\n        const nc = (nz * gy + ny) * gx + nx; if (nc < c) continue;\n        const b0 = start[nc], b1 = start[nc + 1];\n        for (let i = a0; i < a1; i++) for (let j = (nc === c ? i + 1 : b0); j < b1; j++) {\n          let ddx = x[j] - x[i], ddy = y[j] - y[i], ddz = two ? 0 : z[j] - z[i];\n          if (two) { if (ddx > wx / 2) ddx -= wx; else if (ddx < -wx / 2) ddx += wx; if (ddy > wy / 2) ddy -= wy; else if (ddy < -wy / 2) ddy += wy; }\n          if (ddx * ddx + ddy * ddy + ddz * ddz < L2) { let a = find(i), b = find(j); if (a !== b) { if (S[a] < S[b]) { const q = a; a = b; b = q; } P[b] = a; S[a] += S[b]; } }\n        }\n      }\n    }\n    let count = 0, inn = 0; const big = [];\n    for (let i = 0; i < n; i++) if (P[i] === i && S[i] >= minSize) { count++; inn += S[i]; big.push(S[i]); }\n    return { count, inFrac: inn / n, big };\n  }\n  // 快速团块统计：密度网格 + 连通区域（O(N + 格子数)）\n  blobs(minSize = 15) {\n    const n = this.n; if (!n) return { count: 0, inFrac: 0 };\n    const two = this.dim === 2, c = this.rMax * 0.4;\n    const gx = Math.max(4, Math.ceil((two ? this.wx : 2.3 * this.R) / c)), gy = Math.max(4, Math.ceil((two ? this.wy : 2.3 * this.R) / c)), gz = two ? 1 : gx;\n    const N = gx * gy * gz; if (!this._bg || this._bg.length < N) { this._bg = new Int32Array(N); this._bl = new Int32Array(N); this._bq = new Int32Array(N); }\n    const G = this._bg, lab = this._bl, Q = this._bq; G.fill(0, 0, N); lab.fill(0, 0, N);\n    const mean = n / (two ? gx * gy : gx * gy * gz * 0.52), thr = Math.max(2, Math.ceil(mean * 2.5));\n    const o = two ? 0 : 1.15 * this.R, sx = gx / (two ? this.wx : 2.3 * this.R), sy = gy / (two ? this.wy : 2.3 * this.R);\n    for (let i = 0; i < n; i++) {\n      let cx = (this.x[i] + o) * sx | 0, cy = (this.y[i] + o) * sy | 0, cz = two ? 0 : (this.z[i] + o) * sx | 0;\n      cx = cx < 0 ? 0 : cx >= gx ? gx - 1 : cx; cy = cy < 0 ? 0 : cy >= gy ? gy - 1 : cy; cz = cz < 0 ? 0 : cz >= gz ? gz - 1 : cz;\n      G[(cz * gy + cy) * gx + cx]++;\n    }\n    let count = 0, inn = 0, cur = 0;\n    for (let s0 = 0; s0 < N; s0++) {\n      if (G[s0] < thr || lab[s0]) continue;\n      cur++; let qh = 0, qt = 0, tot = 0; Q[qt++] = s0; lab[s0] = cur;\n      while (qh < qt) {\n        const k = Q[qh++]; tot += G[k];\n        const kx = k % gx, ky = (k / gx | 0) % gy, kz = k / (gx * gy) | 0;\n        for (let dz = two ? 0 : -1; dz <= (two ? 0 : 1); dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {\n          let nx = kx + dx, ny = ky + dy, nz = kz + dz;\n          if (two) { nx = (nx + gx) % gx; ny = (ny + gy) % gy; } else if (nx < 0 || ny < 0 || nz < 0 || nx >= gx || ny >= gy || nz >= gz) continue;\n          const nk = (nz * gy + ny) * gx + nx; if (G[nk] >= thr && !lab[nk]) { lab[nk] = cur; Q[qt++] = nk; }\n        }\n      }\n      if (tot >= minSize) { count++; inn += tot; }\n    }\n    return { count, inFrac: inn / n };\n  }\n  meanSpeed() { let s = 0; const n = this.n; for (let i = 0; i < n; i++) s += Math.sqrt(this.vx[i] ** 2 + this.vy[i] ** 2 + this.vz[i] ** 2); return n ? s / n / this.rMax : 0; }\n}\n// ---------- 消息处理：Web Worker 和主线程兜底共用 ----------\nfunction lifeHandle(L, m, reply) {\n  switch (m.cmd) {\n    case 'init':\n      L.dim = m.dim; L.wx = m.wx; L.wy = m.wy; L.R = m.R || 0.5; L.m = m.m; L.K.set(m.K);\n      Object.assign(L, m.params); if (m.seed) L.setSeed(m.seed); else L._rng = null;\n      L.scatter(m.n); break;\n    case 'params': Object.assign(L, m.params); break;\n    case 'K': { const old = L.m; L.K.set(m.K); L.m = m.m; if (m.m < old) L.retype(); else if (m.m > old) { for (let i = 0; i < L.n; i++) if (L.rnd() < (m.m - old) / m.m) L.t[i] = old + (L.rnd() * (m.m - old) | 0); } break; }\n    case 'scatter': L.scatter(m.n); break;\n    case 'resize': L.resize(m.n); break;\n    case 'frame': {\n      L.tools = m.tools || [];\n      if (m.paint) for (const p of m.paint) L.paint(p.x, p.y, p.z || 0, p.r, p.type, p.add);\n      const t0 = Date.now();\n      let done = 0; for (let k = 0; k < m.steps; k++) { L.step(); done++; if (Date.now() - t0 > (m.budget || 40)) break; }\n      let stats = null;\n      if (m.stats) { const b = L.blobs(); stats = { blobs: b.count, inFrac: b.inFrac, speed: L.meanSpeed() }; }\n      const n = L.n, d = L.dim, pos = new Float32Array(n * d), typ = new Uint8Array(n);\n      if (d === 2) for (let i = 0; i < n; i++) { pos[i * 2] = L.x[i]; pos[i * 2 + 1] = L.y[i]; }\n      else for (let i = 0; i < n; i++) { pos[i * 3] = L.x[i]; pos[i * 3 + 1] = L.y[i]; pos[i * 3 + 2] = L.z[i]; }\n      typ.set(L.t.subarray(0, n));\n      reply({ cmd: 'frame', n, dim: d, pos, typ, stats, ms: Date.now() - t0, steps: done }, [pos.buffer, typ.buffer]);\n      break;\n    }\n  }\n}\nif (typeof WorkerGlobalScope !== 'undefined' && typeof self !== 'undefined' && self instanceof WorkerGlobalScope) {\n  const L = new Life(40000);\n  self.onmessage = (e) => lifeHandle(L, e.data, (out, tr) => self.postMessage(out, tr));\n}\nif (typeof module !== 'undefined') module.exports = { Life, MAXT, lifeHandle };\n";
+// ===== sim.js =====
+// ============ 粒子生命：模拟核心（2D 周期世界 / 3D 球形培养皿，均匀网格加速） ============
+const MAXT = 8;
+class Life {
+  constructor(cap) {
+    this.cap = cap; this.dim = 2; this.n = 0; this.m = 6;
+    this.K = new Float32Array(MAXT * MAXT);
+    this.rMax = 0.08; this.beta = 0.3; this.half = 0.04; this.forceK = 10; this.dt = 0.02;
+    this.wx = 1; this.wy = 1; this.R = 0.5;
+    const F = () => new Float32Array(cap);
+    this.x = F(); this.y = F(); this.z = F(); this.vx = F(); this.vy = F(); this.vz = F(); this.t = new Uint8Array(cap);
+    this.x2 = F(); this.y2 = F(); this.z2 = F(); this.vx2 = F(); this.vy2 = F(); this.vz2 = F(); this.t2 = new Uint8Array(cap);
+    this.ax = F(); this.ay = F(); this.az = F();
+    this.cell = new Int32Array(cap);
+    this.cnt = new Int32Array(1); this.start = new Int32Array(1); this.fill = new Int32Array(1);
+    this.gx = 1; this.gy = 1; this.gz = 1;
+    this.tools = []; // 外力：{x,y,z,r,mode,dx,dy,dz,s}
+    this.parent = new Int32Array(cap); this.size = new Int32Array(cap);
+    this.stepCount = 0;
+  }
+  rnd() { return this._rng ? this._rng() : Math.random(); }
+  setSeed(seed) { let a = seed >>> 0 || 1; this._rng = () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  // 撒粒子
+  scatter(n) {
+    this.n = Math.min(n, this.cap);
+    for (let i = 0; i < this.n; i++) this.place(i, this.rnd() * this.m | 0);
+  }
+  place(i, type) {
+    this.t[i] = type; this.vx[i] = this.vy[i] = this.vz[i] = 0;
+    if (this.dim === 2) { this.x[i] = this.rnd() * this.wx; this.y[i] = this.rnd() * this.wy; this.z[i] = 0; }
+    else { let px, py, pz; do { px = this.rnd() * 2 - 1; py = this.rnd() * 2 - 1; pz = this.rnd() * 2 - 1; } while (px * px + py * py + pz * pz > 1); const s = this.R * 0.9; this.x[i] = px * s; this.y[i] = py * s; this.z[i] = pz * s; }
+  }
+  // 改变粒子总数（保留已有的）
+  resize(n) {
+    n = Math.min(Math.max(0, n | 0), this.cap);
+    for (let i = this.n; i < n; i++) this.place(i, this.rnd() * this.m | 0);
+    this.n = n;
+  }
+  retype() { for (let i = 0; i < this.n; i++) if (this.t[i] >= this.m) this.t[i] = this.rnd() * this.m | 0; }
+  _grid(nc) { if (this.cnt.length < nc) { this.cnt = new Int32Array(nc); this.start = new Int32Array(nc + 1); this.fill = new Int32Array(nc); } }
+  // 按网格排序（计数排序），粒子数据按格子连续存放
+  _sort() {
+    const n = this.n, nc = this.gx * this.gy * this.gz; this._grid(nc);
+    const cnt = this.cnt, start = this.start, cell = this.cell;
+    cnt.fill(0, 0, nc);
+    const { x, y, z } = this;
+    if (this.dim === 2) {
+      const sx = this.gx / this.wx, sy = this.gy / this.wy, gx = this.gx, gy = this.gy;
+      for (let i = 0; i < n; i++) { let cx = x[i] * sx | 0, cy = y[i] * sy | 0; if (cx >= gx) cx = gx - 1; if (cy >= gy) cy = gy - 1; if (cx < 0) cx = 0; if (cy < 0) cy = 0; const c = cy * gx + cx; cell[i] = c; cnt[c]++; }
+    } else {
+      const g = this.gx, s = g / (2 * this.R * 1.08), o = this.R * 1.08;
+      for (let i = 0; i < n; i++) {
+        let cx = (x[i] + o) * s | 0, cy = (y[i] + o) * s | 0, cz = (z[i] + o) * s | 0;
+        cx = cx < 0 ? 0 : cx >= g ? g - 1 : cx; cy = cy < 0 ? 0 : cy >= g ? g - 1 : cy; cz = cz < 0 ? 0 : cz >= g ? g - 1 : cz;
+        const c = (cz * g + cy) * g + cx; cell[i] = c; cnt[c]++;
+      }
+    }
+    start[0] = 0; for (let c = 0; c < nc; c++) start[c + 1] = start[c] + cnt[c];
+    const fill = this.fill; fill.set(start.subarray(0, nc));
+    const { vx, vy, vz, t, x2, y2, z2, vx2, vy2, vz2, t2 } = this;
+    for (let i = 0; i < n; i++) { const k = fill[cell[i]]++; x2[k] = x[i]; y2[k] = y[i]; z2[k] = z[i]; vx2[k] = vx[i]; vy2[k] = vy[i]; vz2[k] = vz[i]; t2[k] = t[i]; }
+    [this.x, this.x2] = [x2, x]; [this.y, this.y2] = [y2, y]; [this.z, this.z2] = [z2, z];
+    [this.vx, this.vx2] = [vx2, vx]; [this.vy, this.vy2] = [vy2, vy]; [this.vz, this.vz2] = [vz2, vz]; [this.t, this.t2] = [t2, t];
+  }
+  step() {
+    const rm = this.rMax;
+    if (this.dim === 2) { this.gx = Math.max(3, Math.floor(this.wx / rm)); this.gy = Math.max(3, Math.floor(this.wy / rm)); this.gz = 1; }
+    else { const g = Math.max(3, Math.floor(2 * this.R * 1.08 / rm)); this.gx = this.gy = this.gz = g; }
+    this._sort();
+    if (this.dim === 2) this._force2(); else this._force3();
+    this._integrate();
+    this.stepCount++;
+  }
+  _force2() {
+    const n = this.n, gx = this.gx, gy = this.gy, wx = this.wx, wy = this.wy, hx = wx / 2, hy = wy / 2;
+    const rm = this.rMax, rm2 = rm * rm, irm = 1 / rm, beta = this.beta, ib = 1 / beta, i1b = 1 / (1 - beta);
+    const { x, y, t, K, start, ax, ay } = this; const fk = rm * this.forceK;
+    for (let cy = 0; cy < gy; cy++) for (let cx = 0; cx < gx; cx++) {
+      const c = cy * gx + cx, a0 = start[c], a1 = start[c + 1]; if (a0 === a1) continue;
+      // 9 个邻格的范围
+      const rs = this._rs || (this._rs = new Int32Array(18)); let nr = 0;
+      for (let dy = -1; dy <= 1; dy++) { const ny = (cy + dy + gy) % gy; for (let dx = -1; dx <= 1; dx++) { const nx = (cx + dx + gx) % gx, nc = ny * gx + nx; rs[nr++] = start[nc]; rs[nr++] = start[nc + 1]; } }
+      for (let i = a0; i < a1; i++) {
+        const xi = x[i], yi = y[i], row = t[i] * MAXT; let fx = 0, fy = 0;
+        for (let q = 0; q < 18; q += 2) {
+          const b1 = rs[q + 1];
+          for (let j = rs[q]; j < b1; j++) {
+            let dx = x[j] - xi, dy = y[j] - yi;
+            if (dx > hx) dx -= wx; else if (dx < -hx) dx += wx;
+            if (dy > hy) dy -= wy; else if (dy < -hy) dy += wy;
+            const d2 = dx * dx + dy * dy; if (d2 >= rm2 || d2 === 0) continue;
+            const d = Math.sqrt(d2), r = d * irm;
+            const f = r < beta ? r * ib - 1 : K[row + t[j]] * (1 - Math.abs(2 * r - 1 - beta) * i1b);
+            const k = f / d; fx += dx * k; fy += dy * k;
+          }
+        }
+        ax[i] = fx * fk; ay[i] = fy * fk;
+      }
+    }
+  }
+  _force3() {
+    const g = this.gx, rm = this.rMax, rm2 = rm * rm, irm = 1 / rm, beta = this.beta, ib = 1 / beta, i1b = 1 / (1 - beta);
+    const { x, y, z, t, K, start, ax, ay, az } = this; const fk = rm * this.forceK;
+    const rs = this._rs3 || (this._rs3 = new Int32Array(54));
+    for (let cz = 0; cz < g; cz++) for (let cy = 0; cy < g; cy++) for (let cx = 0; cx < g; cx++) {
+      const c = (cz * g + cy) * g + cx, a0 = start[c], a1 = start[c + 1]; if (a0 === a1) continue;
+      let nr = 0;
+      for (let dz = -1; dz <= 1; dz++) { const nz = cz + dz; if (nz < 0 || nz >= g) continue; for (let dy = -1; dy <= 1; dy++) { const ny = cy + dy; if (ny < 0 || ny >= g) continue; for (let dx = -1; dx <= 1; dx++) { const nx = cx + dx; if (nx < 0 || nx >= g) continue; const nc = (nz * g + ny) * g + nx; rs[nr++] = start[nc]; rs[nr++] = start[nc + 1]; } } }
+      for (let i = a0; i < a1; i++) {
+        const xi = x[i], yi = y[i], zi = z[i], row = t[i] * MAXT; let fx = 0, fy = 0, fz = 0;
+        for (let q = 0; q < nr; q += 2) {
+          const b1 = rs[q + 1];
+          for (let j = rs[q]; j < b1; j++) {
+            const dx = x[j] - xi, dy = y[j] - yi, dz = z[j] - zi;
+            const d2 = dx * dx + dy * dy + dz * dz; if (d2 >= rm2 || d2 === 0) continue;
+            const d = Math.sqrt(d2), r = d * irm;
+            const f = r < beta ? r * ib - 1 : K[row + t[j]] * (1 - Math.abs(2 * r - 1 - beta) * i1b);
+            const k = f / d; fx += dx * k; fy += dy * k; fz += dz * k;
+          }
+        }
+        ax[i] = fx * fk; ay[i] = fy * fk; az[i] = fz * fk;
+      }
+    }
+  }
+  _integrate() {
+    const n = this.n, dt = this.dt, fr = Math.pow(0.5, dt / this.half);
+    const { x, y, z, vx, vy, vz, ax, ay, az } = this;
+    // 外力工具
+    for (const T of this.tools) this._tool(T);
+    if (this.dim === 2) {
+      const wx = this.wx, wy = this.wy;
+      for (let i = 0; i < n; i++) {
+        let u = vx[i] * fr + ax[i] * dt, v = vy[i] * fr + ay[i] * dt;
+        const s2 = u * u + v * v; if (s2 > 4) { const k = 2 / Math.sqrt(s2); u *= k; v *= k; }
+        vx[i] = u; vy[i] = v;
+        let px = x[i] + u * dt, py = y[i] + v * dt;
+        if (px < 0) px += wx; else if (px >= wx) px -= wx;
+        if (py < 0) py += wy; else if (py >= wy) py -= wy;
+        x[i] = px; y[i] = py;
+      }
+    } else {
+      const R = this.R, wall = 30;
+      for (let i = 0; i < n; i++) {
+        let px = x[i], py = y[i], pz = z[i];
+        const r = Math.sqrt(px * px + py * py + pz * pz);
+        let bx = ax[i], by = ay[i], bz = az[i];
+        if (r > R) { const k = -(r - R) * wall / r; bx += px * k; by += py * k; bz += pz * k; }
+        let u = vx[i] * fr + bx * dt, v = vy[i] * fr + by * dt, w = vz[i] * fr + bz * dt;
+        const s2 = u * u + v * v + w * w; if (s2 > 4) { const k = 2 / Math.sqrt(s2); u *= k; v *= k; w *= k; }
+        vx[i] = u; vy[i] = v; vz[i] = w;
+        px += u * dt; py += v * dt; pz += w * dt;
+        const r2 = Math.sqrt(px * px + py * py + pz * pz); if (r2 > R * 1.15) { const k = R * 1.15 / r2; px *= k; py *= k; pz *= k; }
+        x[i] = px; y[i] = py; z[i] = pz;
+      }
+    }
+  }
+  // 工具：搅动 / 吸引 / 排斥（作用在加速度上）
+  _tool(T) {
+    const n = this.n, { x, y, z, ax, ay, az } = this, r2 = T.r * T.r, two = this.dim === 2;
+    const wx = this.wx, wy = this.wy;
+    for (let i = 0; i < n; i++) {
+      let dx = x[i] - T.x, dy = y[i] - T.y, dz = two ? 0 : z[i] - T.z;
+      if (two) { if (dx > wx / 2) dx -= wx; else if (dx < -wx / 2) dx += wx; if (dy > wy / 2) dy -= wy; else if (dy < -wy / 2) dy += wy; }
+      const d2 = dx * dx + dy * dy + dz * dz; if (d2 > r2) continue;
+      const fall = 1 - Math.sqrt(d2) / T.r;
+      if (T.mode === 'stir') { ax[i] += T.dx * T.s * fall; ay[i] += T.dy * T.s * fall; az[i] += (T.dz || 0) * T.s * fall; }
+      else { const d = Math.sqrt(d2) + 1e-4, k = (T.mode === 'pull' ? -1 : 1) * T.s * fall / d; ax[i] += dx * k; ay[i] += dy * k; az[i] += dz * k; }
+    }
+  }
+  // 把半径 r 内的粒子染成 / 生成指定种类
+  paint(px, py, pz, r, type, add) {
+    const n = this.n, r2 = r * r;
+    let changed = 0;
+    for (let i = 0; i < n && changed < 40; i++) {
+      let dx = this.x[i] - px, dy = this.y[i] - py, dz = this.dim === 2 ? 0 : this.z[i] - pz;
+      if (this.dim === 2) { if (dx > this.wx / 2) dx -= this.wx; else if (dx < -this.wx / 2) dx += this.wx; if (dy > this.wy / 2) dy -= this.wy; else if (dy < -this.wy / 2) dy += this.wy; }
+      if (dx * dx + dy * dy + dz * dz < r2 && this.t[i] !== type) { this.t[i] = type; changed++; }
+    }
+    if (add) {
+      for (let k = 0; k < 6 && this.n < this.cap; k++) {
+        const i = this.n++; const a = this.rnd() * 6.2832, q = Math.sqrt(this.rnd()) * r;
+        this.t[i] = type; this.vx[i] = this.vy[i] = this.vz[i] = 0;
+        this.x[i] = px + Math.cos(a) * q; this.y[i] = py + Math.sin(a) * q; this.z[i] = pz + (this.dim === 3 ? (this.rnd() - 0.5) * r : 0);
+        if (this.dim === 2) { this.x[i] = (this.x[i] % this.wx + this.wx) % this.wx; this.y[i] = (this.y[i] % this.wy + this.wy) % this.wy; }
+      }
+    }
+  }
+  // 团块统计（并查集，连接距离 link*rMax），返回 {count, inFrac, sizes}
+  clusters(link = 0.5, minSize = 12) {
+    const n = this.n; if (!n) return { count: 0, inFrac: 0, big: [] };
+    const P = this.parent, S = this.size; for (let i = 0; i < n; i++) { P[i] = i; S[i] = 1; }
+    const find = (a) => { while (P[a] !== a) { P[a] = P[P[a]]; a = P[a]; } return a; };
+    const L = link * this.rMax, L2 = L * L; const { x, y, z, start } = this;
+    const two = this.dim === 2, gx = this.gx, gy = this.gy, gz = this.gz, wx = this.wx, wy = this.wy;
+    // 用上一步的网格（粒子已按格子排序）
+    for (let cz = 0; cz < gz; cz++) for (let cy = 0; cy < gy; cy++) for (let cx = 0; cx < gx; cx++) {
+      const c = (cz * gy + cy) * gx + cx, a0 = start[c], a1 = start[c + 1]; if (a0 === a1) continue;
+      for (let dz = two ? 0 : -1; dz <= (two ? 0 : 1); dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        let nx = cx + dx, ny = cy + dy, nz = cz + dz;
+        if (two) { nx = (nx + gx) % gx; ny = (ny + gy) % gy; } else if (nx < 0 || ny < 0 || nz < 0 || nx >= gx || ny >= gy || nz >= gz) continue;
+        const nc = (nz * gy + ny) * gx + nx; if (nc < c) continue;
+        const b0 = start[nc], b1 = start[nc + 1];
+        for (let i = a0; i < a1; i++) for (let j = (nc === c ? i + 1 : b0); j < b1; j++) {
+          let ddx = x[j] - x[i], ddy = y[j] - y[i], ddz = two ? 0 : z[j] - z[i];
+          if (two) { if (ddx > wx / 2) ddx -= wx; else if (ddx < -wx / 2) ddx += wx; if (ddy > wy / 2) ddy -= wy; else if (ddy < -wy / 2) ddy += wy; }
+          if (ddx * ddx + ddy * ddy + ddz * ddz < L2) { let a = find(i), b = find(j); if (a !== b) { if (S[a] < S[b]) { const q = a; a = b; b = q; } P[b] = a; S[a] += S[b]; } }
+        }
+      }
+    }
+    let count = 0, inn = 0; const big = [];
+    for (let i = 0; i < n; i++) if (P[i] === i && S[i] >= minSize) { count++; inn += S[i]; big.push(S[i]); }
+    return { count, inFrac: inn / n, big };
+  }
+  // 快速团块统计：密度网格 + 连通区域（O(N + 格子数)）
+  blobs(minSize = 15) {
+    const n = this.n; if (!n) return { count: 0, inFrac: 0 };
+    const two = this.dim === 2, c = this.rMax * 0.4;
+    const gx = Math.max(4, Math.ceil((two ? this.wx : 2.3 * this.R) / c)), gy = Math.max(4, Math.ceil((two ? this.wy : 2.3 * this.R) / c)), gz = two ? 1 : gx;
+    const N = gx * gy * gz; if (!this._bg || this._bg.length < N) { this._bg = new Int32Array(N); this._bl = new Int32Array(N); this._bq = new Int32Array(N); }
+    const G = this._bg, lab = this._bl, Q = this._bq; G.fill(0, 0, N); lab.fill(0, 0, N);
+    const mean = n / (two ? gx * gy : gx * gy * gz * 0.52), thr = Math.max(2, Math.ceil(mean * 2.5));
+    const o = two ? 0 : 1.15 * this.R, sx = gx / (two ? this.wx : 2.3 * this.R), sy = gy / (two ? this.wy : 2.3 * this.R);
+    for (let i = 0; i < n; i++) {
+      let cx = (this.x[i] + o) * sx | 0, cy = (this.y[i] + o) * sy | 0, cz = two ? 0 : (this.z[i] + o) * sx | 0;
+      cx = cx < 0 ? 0 : cx >= gx ? gx - 1 : cx; cy = cy < 0 ? 0 : cy >= gy ? gy - 1 : cy; cz = cz < 0 ? 0 : cz >= gz ? gz - 1 : cz;
+      G[(cz * gy + cy) * gx + cx]++;
+    }
+    let count = 0, inn = 0, cur = 0;
+    for (let s0 = 0; s0 < N; s0++) {
+      if (G[s0] < thr || lab[s0]) continue;
+      cur++; let qh = 0, qt = 0, tot = 0; Q[qt++] = s0; lab[s0] = cur;
+      while (qh < qt) {
+        const k = Q[qh++]; tot += G[k];
+        const kx = k % gx, ky = (k / gx | 0) % gy, kz = k / (gx * gy) | 0;
+        for (let dz = two ? 0 : -1; dz <= (two ? 0 : 1); dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          let nx = kx + dx, ny = ky + dy, nz = kz + dz;
+          if (two) { nx = (nx + gx) % gx; ny = (ny + gy) % gy; } else if (nx < 0 || ny < 0 || nz < 0 || nx >= gx || ny >= gy || nz >= gz) continue;
+          const nk = (nz * gy + ny) * gx + nx; if (G[nk] >= thr && !lab[nk]) { lab[nk] = cur; Q[qt++] = nk; }
+        }
+      }
+      if (tot >= minSize) { count++; inn += tot; }
+    }
+    return { count, inFrac: inn / n };
+  }
+  meanSpeed() { let s = 0; const n = this.n; for (let i = 0; i < n; i++) s += Math.sqrt(this.vx[i] ** 2 + this.vy[i] ** 2 + this.vz[i] ** 2); return n ? s / n / this.rMax : 0; }
+}
+// ---------- 消息处理：Web Worker 和主线程兜底共用 ----------
+function lifeHandle(L, m, reply) {
+  switch (m.cmd) {
+    case 'init':
+      L.dim = m.dim; L.wx = m.wx; L.wy = m.wy; L.R = m.R || 0.5; L.m = m.m; L.K.set(m.K);
+      Object.assign(L, m.params); if (m.seed) L.setSeed(m.seed); else L._rng = null;
+      L.scatter(m.n); break;
+    case 'params': Object.assign(L, m.params); break;
+    case 'K': { const old = L.m; L.K.set(m.K); L.m = m.m; if (m.m < old) L.retype(); else if (m.m > old) { for (let i = 0; i < L.n; i++) if (L.rnd() < (m.m - old) / m.m) L.t[i] = old + (L.rnd() * (m.m - old) | 0); } break; }
+    case 'scatter': L.scatter(m.n); break;
+    case 'resize': L.resize(m.n); break;
+    case 'frame': {
+      L.tools = m.tools || [];
+      if (m.paint) for (const p of m.paint) L.paint(p.x, p.y, p.z || 0, p.r, p.type, p.add);
+      const t0 = Date.now();
+      let done = 0; for (let k = 0; k < m.steps; k++) { L.step(); done++; if (Date.now() - t0 > (m.budget || 40)) break; }
+      let stats = null;
+      if (m.stats) { const b = L.blobs(); stats = { blobs: b.count, inFrac: b.inFrac, speed: L.meanSpeed() }; }
+      const n = L.n, d = L.dim, pos = new Float32Array(n * d), typ = new Uint8Array(n);
+      if (d === 2) for (let i = 0; i < n; i++) { pos[i * 2] = L.x[i]; pos[i * 2 + 1] = L.y[i]; }
+      else for (let i = 0; i < n; i++) { pos[i * 3] = L.x[i]; pos[i * 3 + 1] = L.y[i]; pos[i * 3 + 2] = L.z[i]; }
+      typ.set(L.t.subarray(0, n));
+      reply({ cmd: 'frame', n, dim: d, pos, typ, stats, ms: Date.now() - t0, steps: done }, [pos.buffer, typ.buffer]);
+      break;
+    }
+  }
+}
+if (typeof WorkerGlobalScope !== 'undefined' && typeof self !== 'undefined' && self instanceof WorkerGlobalScope) {
+  const L = new Life(40000);
+  self.onmessage = (e) => lifeHandle(L, e.data, (out, tr) => self.postMessage(out, tr));
+}
+if (typeof module !== 'undefined') module.exports = { Life, MAXT, lifeHandle };
+
+// ===== audio.js =====
+// ============ 太空氛围音（Web Audio 实时合成） ============
+class SpaceAudio {
+  constructor() { this.on = false; this.ctx = null; this.tOff = 0; }
+  now() { return this.ctx.currentTime + this.tOff; }
+  init(offline) {
+    if (this.ctx) { if (this.ctx.state === 'suspended' && this.ctx.resume) this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC && !offline) return;
+    const c = this.ctx = offline || new AC();
+    this.master = c.createGain(); this.master.gain.value = offline ? 0.8 : 0; this.master.connect(c.destination);
+    // 混响：程序生成的脉冲响应
+    const len = c.sampleRate * 4, ir = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+    this.rev = c.createConvolver(); this.rev.buffer = ir; const rg = c.createGain(); rg.gain.value = 0.9; this.rev.connect(rg); rg.connect(this.master);
+    // 低频氛围铺底
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 2;
+    const lfo = c.createOscillator(); lfo.frequency.value = 0.05; const lg = c.createGain(); lg.gain.value = 260; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    const pad = c.createGain(); pad.gain.value = 0.16; lp.connect(pad); pad.connect(this.master); pad.connect(this.rev);
+    for (const [f, t, dt] of [[55, 'sine', 0], [82.41, 'triangle', 0.6], [110, 'sine', -0.4], [164.81, 'triangle', 0.3], [220.5, 'sine', 0.2]]) {
+      const o = c.createOscillator(); o.type = t; o.frequency.value = f; o.detune.value = dt * 8; const g = c.createGain(); g.gain.value = f < 100 ? 0.5 : 0.18;
+      const l2 = c.createOscillator(); l2.frequency.value = 0.07 + Math.random() * 0.1; const g2 = c.createGain(); g2.gain.value = 0.12; l2.connect(g2); g2.connect(g.gain); l2.start();
+      o.connect(g); g.connect(lp); o.start();
+    }
+    const noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    this.noise = noise;
+    if (!offline) this.bellTimer = setInterval(() => this.bell(), 2600);
+  }
+  toggle() { this.on = !this.on; if (this.on) this.init(); if (this.ctx) this.master.gain.setTargetAtTime(this.on ? 0.8 : 0, this.ctx.currentTime, 0.6); }
+  bell() {
+    if (!this.on || !this.ctx || Math.random() < 0.35) return; const c = this.ctx, t = this.now() + Math.random() * 0.5;
+    const scale = [0, 3, 5, 7, 10]; const n = scale[Math.floor(Math.random() * 5)] + 12 * (Math.random() < 0.5 ? 0 : 1);
+    const f = 440 * Math.pow(2, n / 12);
+    for (const [r, a] of [[1, 0.05], [2.01, 0.015], [3.9, 0.006]]) {
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f * r; const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(a, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.5 / r);
+      const pan = c.createStereoPanner ? c.createStereoPanner() : null; if (pan) pan.pan.value = Math.random() * 1.6 - 0.8;
+      o.connect(g); (pan ? (g.connect(pan), pan) : g).connect(this.rev); o.start(t); o.stop(t + 4);
+    }
+  }
+  whoosh(dur = 3) {
+    if (!this.on || !this.ctx) return; const c = this.ctx, t = this.now();
+    const s = c.createBufferSource(); s.buffer = this.noise; s.loop = true;
+    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4;
+    f.frequency.setValueAtTime(180, t); f.frequency.exponentialRampToValueAtTime(1800, t + dur * 0.5); f.frequency.exponentialRampToValueAtTime(220, t + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + dur * 0.45); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.master); g.connect(this.rev); s.start(t); s.stop(t + dur + 0.1);
+  }
+  blip() {
+    if (!this.on || !this.ctx) return; const c = this.ctx, t = this.now();
+    const o = c.createOscillator(); o.frequency.setValueAtTime(660, t); o.frequency.exponentialRampToValueAtTime(990, t + 0.08);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.connect(g); g.connect(this.master); g.connect(this.rev); o.start(t); o.stop(t + 0.4);
+  }
+  // 发射轰鸣：低通噪声
+  ignite(dur = 3) {
+    if (!this.on || !this.ctx) return; const c = this.ctx, t = this.now();
+    const s = c.createBufferSource(); s.buffer = this.noise; s.loop = true;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(120, t + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.master); g.connect(this.rev); s.start(t); s.stop(t + dur + 0.1);
+  }
+  // 和弦琶音：成功 / 失败
+  chord(ok = true) {
+    if (!this.on || !this.ctx) return; const c = this.ctx, t0 = this.now();
+    const notes = ok ? [0, 4, 7, 12, 16] : [7, 3, 0, -5];
+    notes.forEach((n, i) => {
+      const t = t0 + i * (ok ? 0.11 : 0.2), f = 392 * Math.pow(2, n / 12);
+      const o = c.createOscillator(); o.type = ok ? 'triangle' : 'sine'; o.frequency.value = f; const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+      o.connect(g); g.connect(this.master); g.connect(this.rev); o.start(t); o.stop(t + 2.3);
+    });
+  }
+}
+
+// ===== presets.js =====
+// 预设：手工设计 + 随机搜索中打分最高的一批
+const PRESETS = [{"id":"s191","name":"彩虹列车","desc":"七色条纹的胶囊排着队前进","m":7,"K":[0.8999999761581421,0.699999988079071,-0.800000011920929,0.4000000059604645,-0.4000000059604645,0.8999999761581421,-0.6000000238418579,0.800000011920929,-0.800000011920929,-0.699999988079071,0.4000000059604645,0.10000000149011612,-0.6000000238418579,-0.6000000238418579,-0.4000000059604645,-1,0.20000000298023224,-1,0,-0.699999988079071,0.20000000298023224,0.699999988079071,-0.6000000238418579,-0.30000001192092896,0.4000000059604645,0.8999999761581421,0.30000001192092896,-0.30000001192092896,-0.20000000298023224,0.800000011920929,0.30000001192092896,-0.20000000298023224,0.5,0.20000000298023224,-0.10000000149011612,0.8999999761581421,-0.800000011920929,0.8999999761581421,0.4000000059604645,0.6000000238418579,0.20000000298023224,-0.800000011920929,-0.5,-0.4000000059604645,0.20000000298023224,0.20000000298023224,0.10000000149011612,-0.800000011920929,0],"r":0.08,"h":0.04,"f":10},{"id":"s59","name":"蠕虫","desc":"一节一节的长虫在扭动","m":7,"K":[-0.5,-0.20000000298023224,-0.8999999761581421,0.20000000298023224,0.800000011920929,-0.8999999761581421,-0.699999988079071,0.10000000149011612,1,-0.800000011920929,-0.699999988079071,0.30000001192092896,0.30000001192092896,0.5,-0.8999999761581421,-0.8999999761581421,0.6000000238418579,0.800000011920929,0.8999999761581421,-0.8999999761581421,-0.4000000059604645,-0.699999988079071,0.10000000149011612,0.4000000059604645,-0.4000000059604645,-1,0.6000000238418579,0.5,0.5,0.800000011920929,-0.20000000298023224,-0.30000001192092896,0.800000011920929,0.5,0.10000000149011612,0.699999988079071,-0.8999999761581421,-0.5,1,-0.5,-0.699999988079071,0.4000000059604645,0.20000000298023224,0.8999999761581421,0.20000000298023224,0,0,0.4000000059604645,-0.6000000238418579],"r":0.08,"h":0.04,"f":10},{"id":"s71","name":"细胞链","desc":"细胞手拉手连成链条","m":6,"K":[-0.10000000149011612,-0.10000000149011612,-0.800000011920929,0.6000000238418579,-0.30000001192092896,-0.10000000149011612,-0.30000001192092896,-0.8999999761581421,-0.10000000149011612,-1,-0.4000000059604645,0.4000000059604645,-0.30000001192092896,0.10000000149011612,-0.800000011920929,0.20000000298023224,0.5,1,0.8999999761581421,-0.800000011920929,-0.4000000059604645,0.4000000059604645,-0.800000011920929,0,0.6000000238418579,0.20000000298023224,1,-0.6000000238418579,0.5,-0.699999988079071,0.8999999761581421,0.10000000149011612,0.699999988079071,-0.800000011920929,0,0.30000001192092896],"r":0.08,"h":0.04,"f":10},{"id":"s182","name":"多层细胞","desc":"细胞核外面裹着好几层膜","m":7,"K":[0.5,0.8999999761581421,-0.8999999761581421,0.6000000238418579,0.699999988079071,-0.699999988079071,-0.4000000059604645,-0.699999988079071,-0.6000000238418579,-0.8999999761581421,0.800000011920929,0.4000000059604645,1,0.699999988079071,0.699999988079071,0.5,0.30000001192092896,0.10000000149011612,0.20000000298023224,-0.6000000238418579,0.20000000298023224,-0.10000000149011612,0.8999999761581421,0.30000001192092896,-1,-0.5,0.699999988079071,-0.8999999761581421,-0.4000000059604645,-0.699999988079071,0.699999988079071,1,0.10000000149011612,0.4000000059604645,-0.800000011920929,0.30000001192092896,1,0.6000000238418579,-0.20000000298023224,0.8999999761581421,0.699999988079071,-0.8999999761581421,-0.20000000298023224,0.30000001192092896,-0.30000001192092896,0.4000000059604645,0.6000000238418579,-0.8999999761581421,-0.5],"r":0.08,"h":0.04,"f":10},{"id":"s69","name":"晶格","desc":"小球自动排成整齐的阵列","m":6,"K":[0.20000000298023224,0.8999999761581421,1,0,0,0.6000000238418579,0.20000000298023224,-0.20000000298023224,-0.30000001192092896,-0.699999988079071,-0.30000001192092896,0.30000001192092896,0.6000000238418579,0.6000000238418579,0.699999988079071,0.699999988079071,0.6000000238418579,0.4000000059604645,-0.6000000238418579,0,0.699999988079071,-0.6000000238418579,-1,-0.8999999761581421,-0.5,-0.6000000238418579,0.20000000298023224,-0.800000011920929,1,0.20000000298023224,0.6000000238418579,-0.800000011920929,-0.10000000149011612,0,-0.699999988079071,0.10000000149011612],"r":0.08,"h":0.04,"f":10},{"id":"s104","name":"萤火","desc":"发光的团子，相撞时会合并","m":4,"K":[-0.30000001192092896,-0.8999999761581421,1,0.699999988079071,0.30000001192092896,0.6000000238418579,-0.20000000298023224,-0.5,-0.20000000298023224,0.800000011920929,-0.4000000059604645,-0.5,0.20000000298023224,0.6000000238418579,0.6000000238418579,0.699999988079071],"r":0.08,"h":0.04,"f":10},{"id":"s65","name":"洋葱","desc":"三种颜色一层包一层","m":3,"K":[0.20000000298023224,-0.6000000238418579,0.8999999761581421,0.8999999761581421,-0.800000011920929,0.800000011920929,-0.699999988079071,0.800000011920929,0.4000000059604645],"r":0.08,"h":0.04,"f":10},{"id":"s40","name":"三维星云","desc":"同样的规则放进 3D 培养皿","m":6,"K":[0.5,-0.6000000238418579,0.20000000298023224,-0.5,0.4000000059604645,0,0.699999988079071,-0.30000001192092896,0.10000000149011612,0.5,-0.800000011920929,0.10000000149011612,-0.4000000059604645,0.699999988079071,0.800000011920929,-0.4000000059604645,-0.20000000298023224,0.20000000298023224,0.30000001192092896,1,-0.10000000149011612,-0.6000000238418579,-0.8999999761581421,-0.4000000059604645,-0.20000000298023224,-0.4000000059604645,-0.699999988079071,-0.5,-0.6000000238418579,0.699999988079071,-0.6000000238418579,-0.800000011920929,0.6000000238418579,1,-0.8999999761581421,0.30000001192092896],"r":0.08,"h":0.04,"f":10,"dim":3,"r3":0.12}];
+const LIB = PRESETS.concat([{"id":"s23","name":"宇宙 #23","m":4,"K":[0.699999988079071,-0.699999988079071,-0.6000000238418579,-0.10000000149011612,1,-0.5,0.30000001192092896,0.8999999761581421,-0.8999999761581421,0.6000000238418579,0,0.30000001192092896,0.699999988079071,0.8999999761581421,-0.30000001192092896,-0.8999999761581421],"r":0.08,"h":0.04,"f":10},{"id":"s191","name":"宇宙 #191","m":7,"K":[0.8999999761581421,0.699999988079071,-0.800000011920929,0.4000000059604645,-0.4000000059604645,0.8999999761581421,-0.6000000238418579,0.800000011920929,-0.800000011920929,-0.699999988079071,0.4000000059604645,0.10000000149011612,-0.6000000238418579,-0.6000000238418579,-0.4000000059604645,-1,0.20000000298023224,-1,0,-0.699999988079071,0.20000000298023224,0.699999988079071,-0.6000000238418579,-0.30000001192092896,0.4000000059604645,0.8999999761581421,0.30000001192092896,-0.30000001192092896,-0.20000000298023224,0.800000011920929,0.30000001192092896,-0.20000000298023224,0.5,0.20000000298023224,-0.10000000149011612,0.8999999761581421,-0.800000011920929,0.8999999761581421,0.4000000059604645,0.6000000238418579,0.20000000298023224,-0.800000011920929,-0.5,-0.4000000059604645,0.20000000298023224,0.20000000298023224,0.10000000149011612,-0.800000011920929,0],"r":0.08,"h":0.04,"f":10},{"id":"s65","name":"宇宙 #65","m":3,"K":[0.20000000298023224,-0.6000000238418579,0.8999999761581421,0.8999999761581421,-0.800000011920929,0.800000011920929,-0.699999988079071,0.800000011920929,0.4000000059604645],"r":0.08,"h":0.04,"f":10},{"id":"s182","name":"宇宙 #182","m":7,"K":[0.5,0.8999999761581421,-0.8999999761581421,0.6000000238418579,0.699999988079071,-0.699999988079071,-0.4000000059604645,-0.699999988079071,-0.6000000238418579,-0.8999999761581421,0.800000011920929,0.4000000059604645,1,0.699999988079071,0.699999988079071,0.5,0.30000001192092896,0.10000000149011612,0.20000000298023224,-0.6000000238418579,0.20000000298023224,-0.10000000149011612,0.8999999761581421,0.30000001192092896,-1,-0.5,0.699999988079071,-0.8999999761581421,-0.4000000059604645,-0.699999988079071,0.699999988079071,1,0.10000000149011612,0.4000000059604645,-0.800000011920929,0.30000001192092896,1,0.6000000238418579,-0.20000000298023224,0.8999999761581421,0.699999988079071,-0.8999999761581421,-0.20000000298023224,0.30000001192092896,-0.30000001192092896,0.4000000059604645,0.6000000238418579,-0.8999999761581421,-0.5],"r":0.08,"h":0.04,"f":10},{"id":"s104","name":"宇宙 #104","m":4,"K":[-0.30000001192092896,-0.8999999761581421,1,0.699999988079071,0.30000001192092896,0.6000000238418579,-0.20000000298023224,-0.5,-0.20000000298023224,0.800000011920929,-0.4000000059604645,-0.5,0.20000000298023224,0.6000000238418579,0.6000000238418579,0.699999988079071],"r":0.08,"h":0.04,"f":10},{"id":"s59","name":"宇宙 #59","m":7,"K":[-0.5,-0.20000000298023224,-0.8999999761581421,0.20000000298023224,0.800000011920929,-0.8999999761581421,-0.699999988079071,0.10000000149011612,1,-0.800000011920929,-0.699999988079071,0.30000001192092896,0.30000001192092896,0.5,-0.8999999761581421,-0.8999999761581421,0.6000000238418579,0.800000011920929,0.8999999761581421,-0.8999999761581421,-0.4000000059604645,-0.699999988079071,0.10000000149011612,0.4000000059604645,-0.4000000059604645,-1,0.6000000238418579,0.5,0.5,0.800000011920929,-0.20000000298023224,-0.30000001192092896,0.800000011920929,0.5,0.10000000149011612,0.699999988079071,-0.8999999761581421,-0.5,1,-0.5,-0.699999988079071,0.4000000059604645,0.20000000298023224,0.8999999761581421,0.20000000298023224,0,0,0.4000000059604645,-0.6000000238418579],"r":0.08,"h":0.04,"f":10},{"id":"s40","name":"宇宙 #40","m":6,"K":[0.5,-0.6000000238418579,0.20000000298023224,-0.5,0.4000000059604645,0,0.699999988079071,-0.30000001192092896,0.10000000149011612,0.5,-0.800000011920929,0.10000000149011612,-0.4000000059604645,0.699999988079071,0.800000011920929,-0.4000000059604645,-0.20000000298023224,0.20000000298023224,0.30000001192092896,1,-0.10000000149011612,-0.6000000238418579,-0.8999999761581421,-0.4000000059604645,-0.20000000298023224,-0.4000000059604645,-0.699999988079071,-0.5,-0.6000000238418579,0.699999988079071,-0.6000000238418579,-0.800000011920929,0.6000000238418579,1,-0.8999999761581421,0.30000001192092896],"r":0.08,"h":0.04,"f":10},{"id":"s68","name":"宇宙 #68","m":7,"K":[0.800000011920929,-0.20000000298023224,0.6000000238418579,-0.10000000149011612,0.4000000059604645,0.10000000149011612,0.10000000149011612,0,-0.20000000298023224,-0.10000000149011612,1,0.20000000298023224,0.800000011920929,0.30000001192092896,-0.800000011920929,0.8999999761581421,-0.30000001192092896,-0.10000000149011612,0.30000001192092896,-0.10000000149011612,-1,-0.8999999761581421,-0.10000000149011612,-0.6000000238418579,0.10000000149011612,0.20000000298023224,-0.20000000298023224,-0.6000000238418579,-0.5,-0.30000001192092896,-0.6000000238418579,0.30000001192092896,0.20000000298023224,0.8999999761581421,0.10000000149011612,-0.4000000059604645,-0.699999988079071,-0.699999988079071,-0.8999999761581421,0.20000000298023224,0,-0.4000000059604645,-0.5,0.800000011920929,-0.5,0.8999999761581421,-1,-0.800000011920929,-0.6000000238418579],"r":0.08,"h":0.04,"f":10},{"id":"s81","name":"宇宙 #81","m":7,"K":[-0.20000000298023224,-0.8999999761581421,0.4000000059604645,0.8999999761581421,0,0.5,0,0.30000001192092896,0.800000011920929,0.8999999761581421,0.699999988079071,-0.30000001192092896,-0.6000000238418579,0.699999988079071,-0.5,-0.5,0.8999999761581421,0.30000001192092896,-0.4000000059604645,-0.4000000059604645,0.6000000238418579,-1,0,0.30000001192092896,0.6000000238418579,0.4000000059604645,0.6000000238418579,0.6000000238418579,0.8999999761581421,0.6000000238418579,-0.800000011920929,0.5,-0.30000001192092896,-0.20000000298023224,-0.4000000059604645,0.699999988079071,-0.699999988079071,-0.699999988079071,0.10000000149011612,0.30000001192092896,0.30000001192092896,0.30000001192092896,0.800000011920929,-1,0.4000000059604645,0.6000000238418579,0.800000011920929,-0.8999999761581421,0.5],"r":0.08,"h":0.04,"f":10},{"id":"s71","name":"宇宙 #71","m":6,"K":[-0.10000000149011612,-0.10000000149011612,-0.800000011920929,0.6000000238418579,-0.30000001192092896,-0.10000000149011612,-0.30000001192092896,-0.8999999761581421,-0.10000000149011612,-1,-0.4000000059604645,0.4000000059604645,-0.30000001192092896,0.10000000149011612,-0.800000011920929,0.20000000298023224,0.5,1,0.8999999761581421,-0.800000011920929,-0.4000000059604645,0.4000000059604645,-0.800000011920929,0,0.6000000238418579,0.20000000298023224,1,-0.6000000238418579,0.5,-0.699999988079071,0.8999999761581421,0.10000000149011612,0.699999988079071,-0.800000011920929,0,0.30000001192092896],"r":0.08,"h":0.04,"f":10},{"id":"s69","name":"宇宙 #69","m":6,"K":[0.20000000298023224,0.8999999761581421,1,0,0,0.6000000238418579,0.20000000298023224,-0.20000000298023224,-0.30000001192092896,-0.699999988079071,-0.30000001192092896,0.30000001192092896,0.6000000238418579,0.6000000238418579,0.699999988079071,0.699999988079071,0.6000000238418579,0.4000000059604645,-0.6000000238418579,0,0.699999988079071,-0.6000000238418579,-1,-0.8999999761581421,-0.5,-0.6000000238418579,0.20000000298023224,-0.800000011920929,1,0.20000000298023224,0.6000000238418579,-0.800000011920929,-0.10000000149011612,0,-0.699999988079071,0.10000000149011612],"r":0.08,"h":0.04,"f":10},{"id":"s121","name":"宇宙 #121","m":6,"K":[0.699999988079071,-0.6000000238418579,-1,0.800000011920929,0.5,0.699999988079071,0.4000000059604645,0,-0.20000000298023224,-1,0.6000000238418579,0,-0.20000000298023224,-0.5,0.10000000149011612,0.10000000149011612,0,0.5,-0.5,0.5,0.699999988079071,0.800000011920929,0.30000001192092896,-0.800000011920929,0.800000011920929,0.8999999761581421,-0.6000000238418579,0.30000001192092896,0,0.8999999761581421,0.10000000149011612,-0.6000000238418579,0.800000011920929,-0.30000001192092896,0.5,-1],"r":0.08,"h":0.04,"f":10},{"id":"s131","name":"宇宙 #131","m":7,"K":[0.699999988079071,0.30000001192092896,-0.10000000149011612,-0.10000000149011612,0.800000011920929,-0.5,-0.800000011920929,0.10000000149011612,-0.8999999761581421,0.8999999761581421,-0.4000000059604645,-0.5,0.699999988079071,0,0,-0.4000000059604645,0.6000000238418579,-1,-0.10000000149011612,-0.4000000059604645,0.10000000149011612,-0.4000000059604645,-0.8999999761581421,0.10000000149011612,-0.6000000238418579,0.800000011920929,-0.30000001192092896,-0.6000000238418579,0.20000000298023224,-0.4000000059604645,0.699999988079071,-0.30000001192092896,-0.800000011920929,-0.8999999761581421,0.699999988079071,0.10000000149011612,-0.20000000298023224,0.800000011920929,-0.4000000059604645,-0.30000001192092896,-0.4000000059604645,0.699999988079071,0.8999999761581421,0,-0.5,0.10000000149011612,0.4000000059604645,-0.30000001192092896,0.5],"r":0.08,"h":0.04,"f":10},{"id":"s219","name":"宇宙 #219","m":4,"K":[0,-0.30000001192092896,-0.699999988079071,0.800000011920929,0.10000000149011612,0.6000000238418579,-1,0.800000011920929,0.4000000059604645,0.20000000298023224,-0.4000000059604645,-0.4000000059604645,0.30000001192092896,0.20000000298023224,0.8999999761581421,0.30000001192092896],"r":0.08,"h":0.04,"f":10},{"id":"s86","name":"宇宙 #86","m":6,"K":[0.4000000059604645,0.4000000059604645,0.30000001192092896,0.8999999761581421,0.8999999761581421,0.5,0.30000001192092896,-0.6000000238418579,0.4000000059604645,0,0,-0.800000011920929,0.4000000059604645,0.699999988079071,-0.5,0.6000000238418579,0.10000000149011612,0.10000000149011612,0.5,0.699999988079071,0.800000011920929,-0.5,-0.30000001192092896,-0.20000000298023224,0.6000000238418579,0.8999999761581421,-0.8999999761581421,0.5,0,-0.20000000298023224,-0.20000000298023224,0.10000000149011612,-0.30000001192092896,0.4000000059604645,1,-0.4000000059604645],"r":0.08,"h":0.04,"f":10},{"id":"s56","name":"宇宙 #56","m":6,"K":[-0.6000000238418579,-0.8999999761581421,0.5,-0.30000001192092896,-0.8999999761581421,0.699999988079071,-0.699999988079071,-0.5,0.6000000238418579,-0.8999999761581421,0.8999999761581421,0.20000000298023224,0.4000000059604645,0.30000001192092896,0.10000000149011612,-0.30000001192092896,0.8999999761581421,-0.30000001192092896,-0.800000011920929,-0.8999999761581421,0.10000000149011612,0.800000011920929,-0.699999988079071,-0.699999988079071,0.699999988079071,-0.8999999761581421,-0.20000000298023224,-0.800000011920929,0.8999999761581421,-0.30000001192092896,0.800000011920929,0.4000000059604645,-1,0.20000000298023224,-0.5,0.30000001192092896],"r":0.08,"h":0.04,"f":10},{"id":"s192","name":"宇宙 #192","m":5,"K":[0.30000001192092896,0.30000001192092896,1,0.10000000149011612,-0.30000001192092896,0.699999988079071,0.10000000149011612,-0.20000000298023224,0.699999988079071,-0.5,0.6000000238418579,0.10000000149011612,0.10000000149011612,0.699999988079071,0.4000000059604645,-0.5,-0.800000011920929,-0.4000000059604645,0.5,-0.5,0.30000001192092896,-0.5,-0.10000000149011612,-0.8999999761581421,0.4000000059604645],"r":0.08,"h":0.04,"f":10},{"id":"s93","name":"宇宙 #93","m":6,"K":[0.10000000149011612,-0.8999999761581421,0.8999999761581421,-0.4000000059604645,0.8999999761581421,-0.8999999761581421,0.30000001192092896,-0.6000000238418579,-0.30000001192092896,0.5,0.5,0.6000000238418579,0.5,-0.20000000298023224,-0.30000001192092896,0.6000000238418579,0.5,-0.4000000059604645,-0.30000001192092896,-0.5,-0.30000001192092896,-0.6000000238418579,-0.10000000149011612,1,1,0.5,-0.8999999761581421,-0.30000001192092896,0.30000001192092896,0.4000000059604645,-0.6000000238418579,0.5,-0.30000001192092896,0.20000000298023224,0.800000011920929,0.10000000149011612],"r":0.08,"h":0.04,"f":10},{"id":"s236","name":"宇宙 #236","m":5,"K":[0,0.800000011920929,0.30000001192092896,-0.6000000238418579,-0.20000000298023224,0.800000011920929,0.800000011920929,0,0.4000000059604645,0.5,-0.20000000298023224,-0.699999988079071,0.4000000059604645,0.5,0.6000000238418579,-0.8999999761581421,0.20000000298023224,-0.4000000059604645,-0.800000011920929,-0.20000000298023224,-0.20000000298023224,0.8999999761581421,0.10000000149011612,1,-0.800000011920929],"r":0.08,"h":0.04,"f":10},{"id":"s189","name":"宇宙 #189","m":7,"K":[0.30000001192092896,0.10000000149011612,-0.4000000059604645,-0.10000000149011612,0,-0.4000000059604645,0.800000011920929,-0.800000011920929,0.4000000059604645,-0.30000001192092896,1,-0.8999999761581421,0.30000001192092896,0.699999988079071,0.8999999761581421,0.800000011920929,0.30000001192092896,-1,0.20000000298023224,-0.8999999761581421,0.10000000149011612,-0.8999999761581421,0.8999999761581421,-0.30000001192092896,0.4000000059604645,-0.5,0.30000001192092896,0.5,-0.30000001192092896,-0.699999988079071,1,1,-0.800000011920929,-0.20000000298023224,-0.8999999761581421,0.6000000238418579,0.30000001192092896,-0.10000000149011612,0.20000000298023224,-0.30000001192092896,0.30000001192092896,-0.4000000059604645,-0.20000000298023224,0.10000000149011612,0.4000000059604645,-0.699999988079071,0.30000001192092896,0.699999988079071,-0.8999999761581421],"r":0.08,"h":0.04,"f":10},{"id":"s188","name":"宇宙 #188","m":7,"K":[0,0.6000000238418579,-0.20000000298023224,-0.20000000298023224,0.4000000059604645,0.6000000238418579,-0.30000001192092896,0.699999988079071,0.10000000149011612,0,0.10000000149011612,0.30000001192092896,0.6000000238418579,-0.8999999761581421,0.20000000298023224,0.4000000059604645,0.4000000059604645,-0.5,-0.800000011920929,-0.4000000059604645,-0.6000000238418579,0.5,0.6000000238418579,0.5,-0.699999988079071,0.30000001192092896,-0.4000000059604645,0.10000000149011612,-0.800000011920929,0.30000001192092896,0.20000000298023224,-0.4000000059604645,0.10000000149011612,-0.6000000238418579,0.699999988079071,1,-0.6000000238418579,-0.5,0.5,0.800000011920929,0.6000000238418579,-0.30000001192092896,0.800000011920929,0.20000000298023224,-0.5,-0.20000000298023224,0.20000000298023224,-0.30000001192092896,-0.6000000238418579],"r":0.08,"h":0.04,"f":10},{"id":"s94","name":"宇宙 #94","m":6,"K":[-0.699999988079071,-0.30000001192092896,0.6000000238418579,0.6000000238418579,0.8999999761581421,1,-0.4000000059604645,0.699999988079071,0.699999988079071,0.6000000238418579,-0.10000000149011612,0.5,0.20000000298023224,0.10000000149011612,0,-0.800000011920929,-0.20000000298023224,0.4000000059604645,0.5,0.699999988079071,-0.800000011920929,-0.800000011920929,0.699999988079071,0.699999988079071,-0.800000011920929,-0.699999988079071,0.699999988079071,-0.800000011920929,-0.699999988079071,0.5,0.30000001192092896,-0.4000000059604645,-1,-0.800000011920929,0.20000000298023224,0.4000000059604645],"r":0.08,"h":0.04,"f":10},{"id":"s64","name":"宇宙 #64","m":4,"K":[-0.699999988079071,-0.30000001192092896,0.8999999761581421,0.699999988079071,0.800000011920929,-0.20000000298023224,-0.699999988079071,0.4000000059604645,0.20000000298023224,0.6000000238418579,-0.4000000059604645,0.20000000298023224,0.4000000059604645,0.30000001192092896,-0.800000011920929,0.20000000298023224],"r":0.08,"h":0.04,"f":10},{"id":"s171","name":"宇宙 #171","m":5,"K":[0.800000011920929,-0.8999999761581421,-0.699999988079071,0,0.20000000298023224,-0.800000011920929,0,0.6000000238418579,0.5,-0.4000000059604645,1,0.699999988079071,0.800000011920929,0.8999999761581421,-0.6000000238418579,-0.800000011920929,0.800000011920929,-0.8999999761581421,0.30000001192092896,0,-0.6000000238418579,0,-0.5,-0.10000000149011612,-0.20000000298023224],"r":0.08,"h":0.04,"f":10},{"id":"s157","name":"宇宙 #157","m":3,"K":[0.20000000298023224,-0.10000000149011612,0.699999988079071,-0.8999999761581421,-0.10000000149011612,0.8999999761581421,0.30000001192092896,-0.4000000059604645,1],"r":0.08,"h":0.04,"f":10},{"id":"s9","name":"宇宙 #9","m":7,"K":[-0.699999988079071,-0.6000000238418579,-0.800000011920929,0.5,0.20000000298023224,0.8999999761581421,-0.4000000059604645,0.699999988079071,0.20000000298023224,0.5,-0.5,0,-0.5,0.699999988079071,0.4000000059604645,-1,-0.20000000298023224,0.5,-0.10000000149011612,0.5,0.5,-0.20000000298023224,0.4000000059604645,0.699999988079071,-0.5,-0.8999999761581421,1,-1,-0.800000011920929,-0.6000000238418579,-0.800000011920929,-0.10000000149011612,-0.10000000149011612,-0.20000000298023224,-0.699999988079071,0.699999988079071,0.4000000059604645,0.800000011920929,-0.800000011920929,0,0.5,0.5,-0.8999999761581421,0.5,0.6000000238418579,-0.5,0.30000001192092896,-0.4000000059604645,-0.8999999761581421],"r":0.08,"h":0.04,"f":10},{"id":"s150","name":"宇宙 #150","m":5,"K":[0.30000001192092896,0.30000001192092896,-0.30000001192092896,0.699999988079071,0,-0.4000000059604645,-0.8999999761581421,-0.699999988079071,-0.5,0.699999988079071,-0.20000000298023224,-0.10000000149011612,-0.6000000238418579,0.20000000298023224,-0.4000000059604645,0.30000001192092896,-0.4000000059604645,-0.699999988079071,0,0.5,-0.6000000238418579,0.5,-0.30000001192092896,-0.30000001192092896,0],"r":0.08,"h":0.04,"f":10},{"id":"s27","name":"宇宙 #27","m":7,"K":[0.4000000059604645,0.699999988079071,-0.5,0.30000001192092896,-0.800000011920929,-1,-0.30000001192092896,-0.10000000149011612,0.20000000298023224,-0.6000000238418579,-0.4000000059604645,0.8999999761581421,-0.6000000238418579,0,-0.6000000238418579,-0.800000011920929,-0.5,0.6000000238418579,-0.4000000059604645,-0.699999988079071,0,0.30000001192092896,-0.4000000059604645,0.30000001192092896,-0.20000000298023224,0.5,-0.4000000059604645,0.20000000298023224,-0.20000000298023224,0.10000000149011612,0.8999999761581421,0,-0.30000001192092896,0,0,0.800000011920929,-0.5,0.800000011920929,-0.8999999761581421,0.4000000059604645,0,-0.20000000298023224,-0.6000000238418579,-0.30000001192092896,0.800000011920929,1,-0.4000000059604645,0.5,0.6000000238418579],"r":0.08,"h":0.04,"f":10},{"id":"s141","name":"宇宙 #141","m":3,"K":[0.10000000149011612,-0.800000011920929,0.800000011920929,1,0.20000000298023224,-0.20000000298023224,-0.4000000059604645,0.10000000149011612,0.6000000238418579],"r":0.08,"h":0.04,"f":10},{"id":"s120","name":"宇宙 #120","m":6,"K":[-0.8999999761581421,-0.699999988079071,-0.20000000298023224,0.5,1,-0.8999999761581421,-0.10000000149011612,0.30000001192092896,-0.800000011920929,-0.4000000059604645,-0.4000000059604645,-0.20000000298023224,-0.8999999761581421,0,-0.6000000238418579,0.699999988079071,-0.10000000149011612,0.800000011920929,0.30000001192092896,-0.6000000238418579,0.30000001192092896,0.10000000149011612,-0.800000011920929,0.4000000059604645,1,0.5,-0.10000000149011612,-0.5,0.30000001192092896,0.10000000149011612,0.5,0.10000000149011612,0.800000011920929,-0.6000000238418579,0.10000000149011612,-0.20000000298023224],"r":0.08,"h":0.04,"f":10},{"id":"s202","name":"宇宙 #202","m":6,"K":[-0.6000000238418579,0.10000000149011612,-0.20000000298023224,0.800000011920929,-0.800000011920929,0.10000000149011612,-0.800000011920929,0.699999988079071,0.20000000298023224,0.6000000238418579,-0.699999988079071,0.5,-0.800000011920929,-0.699999988079071,-0.10000000149011612,0,-0.8999999761581421,0.800000011920929,0.5,-0.8999999761581421,-0.20000000298023224,0.4000000059604645,0.20000000298023224,-0.4000000059604645,0.20000000298023224,-0.800000011920929,0.10000000149011612,-0.30000001192092896,0.800000011920929,-0.10000000149011612,-0.5,0.30000001192092896,-0.8999999761581421,0.8999999761581421,0.10000000149011612,0.10000000149011612],"r":0.08,"h":0.04,"f":10},{"id":"s114","name":"宇宙 #114","m":5,"K":[0.4000000059604645,0.5,-0.800000011920929,-0.20000000298023224,0.20000000298023224,-0.30000001192092896,0.20000000298023224,0,-0.30000001192092896,-0.4000000059604645,-0.5,0.4000000059604645,0.4000000059604645,0.8999999761581421,0.5,0.8999999761581421,0,0.8999999761581421,0.699999988079071,-0.800000011920929,0.699999988079071,0.30000001192092896,0.20000000298023224,-0.5,1],"r":0.08,"h":0.04,"f":10},{"id":"s82","name":"宇宙 #82","m":6,"K":[-0.4000000059604645,1,0.699999988079071,0.6000000238418579,-0.800000011920929,0.8999999761581421,0.4000000059604645,0.20000000298023224,0.800000011920929,0.699999988079071,0,0.10000000149011612,0.4000000059604645,-0.10000000149011612,-0.8999999761581421,-0.800000011920929,-0.5,0.800000011920929,-0.10000000149011612,-0.4000000059604645,-1,0.10000000149011612,0.10000000149011612,0.10000000149011612,0.5,-0.8999999761581421,-0.4000000059604645,0.20000000298023224,0.5,-0.8999999761581421,0.800000011920929,-0.10000000149011612,1,0.800000011920929,-0.20000000298023224,-0.10000000149011612],"r":0.08,"h":0.04,"f":10},{"id":"s48","name":"宇宙 #48","m":5,"K":[0.30000001192092896,-0.30000001192092896,1,0.800000011920929,0.800000011920929,-0.20000000298023224,0.4000000059604645,-0.8999999761581421,-0.800000011920929,-0.10000000149011612,0.8999999761581421,0.6000000238418579,-0.10000000149011612,-0.20000000298023224,-0.800000011920929,0.4000000059604645,0.10000000149011612,-0.5,-1,-0.699999988079071,-0.6000000238418579,-0.4000000059604645,0.4000000059604645,-0.4000000059604645,0.6000000238418579],"r":0.08,"h":0.04,"f":10},{"id":"s5","name":"宇宙 #5","m":4,"K":[-0.5,0.4000000059604645,-0.5,0.8999999761581421,-0.5,0.4000000059604645,0.699999988079071,0.800000011920929,0,0,0.5,0.20000000298023224,-0.8999999761581421,0.699999988079071,0,-0.10000000149011612],"r":0.08,"h":0.04,"f":10},{"id":"s50","name":"宇宙 #50","m":5,"K":[0.699999988079071,-1,0.800000011920929,-0.30000001192092896,-0.20000000298023224,0,0.10000000149011612,-0.30000001192092896,0.4000000059604645,-0.30000001192092896,-0.6000000238418579,-0.699999988079071,0.20000000298023224,0.800000011920929,0.10000000149011612,-0.800000011920929,-0.6000000238418579,0.10000000149011612,0.699999988079071,0.699999988079071,0.30000001192092896,0.30000001192092896,0.699999988079071,-0.30000001192092896,-0.5],"r":0.08,"h":0.04,"f":10},{"id":"s75","name":"宇宙 #75","m":7,"K":[0.6000000238418579,0.20000000298023224,-0.30000001192092896,-0.8999999761581421,-0.30000001192092896,-0.699999988079071,0.8999999761581421,0,-0.6000000238418579,-1,-1,-0.20000000298023224,-0.699999988079071,0.699999988079071,-0.10000000149011612,-0.6000000238418579,0.4000000059604645,-0.800000011920929,-0.30000001192092896,-0.800000011920929,0.5,-0.20000000298023224,0.30000001192092896,0.4000000059604645,-0.699999988079071,0.800000011920929,0.699999988079071,-0.20000000298023224,0.4000000059604645,0.5,0.8999999761581421,0.8999999761581421,-1,0.20000000298023224,0.30000001192092896,-0.4000000059604645,-0.4000000059604645,-0.20000000298023224,0,0.5,0,-0.6000000238418579,0.4000000059604645,0.10000000149011612,0.800000011920929,0.8999999761581421,-0.20000000298023224,-0.6000000238418579,0.5],"r":0.08,"h":0.04,"f":10},{"id":"s213","name":"宇宙 #213","m":7,"K":[0.699999988079071,0.5,0.5,0.10000000149011612,0,-0.6000000238418579,0.4000000059604645,0,-0.800000011920929,0.30000001192092896,-0.800000011920929,0,-0.5,-0.20000000298023224,0.10000000149011612,-0.10000000149011612,0,0.10000000149011612,0.30000001192092896,-0.8999999761581421,-0.10000000149011612,0.4000000059604645,0.10000000149011612,0.5,0.8999999761581421,-0.699999988079071,0,0.20000000298023224,0.4000000059604645,-0.4000000059604645,-0.800000011920929,0.800000011920929,0.30000001192092896,0.10000000149011612,0.30000001192092896,0.699999988079071,0.20000000298023224,-0.5,-0.4000000059604645,-0.6000000238418579,-0.5,0.30000001192092896,-0.5,-0.800000011920929,-0.699999988079071,0,1,0.5,0.4000000059604645],"r":0.08,"h":0.04,"f":10},{"id":"s42","name":"宇宙 #42","m":5,"K":[0.30000001192092896,0.699999988079071,0.20000000298023224,-0.5,0.699999988079071,-0.30000001192092896,0.800000011920929,0.8999999761581421,-0.30000001192092896,0.699999988079071,-0.8999999761581421,-0.8999999761581421,-0.10000000149011612,0.30000001192092896,-0.10000000149011612,-0.800000011920929,0.800000011920929,-0.5,0.5,0.6000000238418579,0,0.10000000149011612,0.8999999761581421,-0.20000000298023224,-0.8999999761581421],"r":0.08,"h":0.04,"f":10},{"id":"s140","name":"宇宙 #140","m":7,"K":[0.800000011920929,0.30000001192092896,0.8999999761581421,0.800000011920929,0.5,-0.800000011920929,0.20000000298023224,0.30000001192092896,-0.6000000238418579,-0.30000001192092896,-0.800000011920929,-1,0.6000000238418579,0.10000000149011612,0.699999988079071,0.5,-0.5,-0.699999988079071,1,-0.6000000238418579,-0.800000011920929,0.20000000298023224,-0.5,0.30000001192092896,0.6000000238418579,-0.8999999761581421,-0.8999999761581421,-0.8999999761581421,-0.4000000059604645,0.699999988079071,-0.10000000149011612,0.30000001192092896,0.4000000059604645,0.20000000298023224,0.5,-0.699999988079071,-0.6000000238418579,0,0.800000011920929,-0.20000000298023224,0.4000000059604645,0.4000000059604645,-0.4000000059604645,0.10000000149011612,0.699999988079071,0.8999999761581421,0.8999999761581421,-0.10000000149011612,0.4000000059604645],"r":0.08,"h":0.04,"f":10}]);
+
+// ===== app.js =====
+// ============ 粒子生命：渲染、交互、界面 ============
+const $ = (s) => document.querySelector(s);
+const canvas = $('#c');
+const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false, powerPreference: 'high-performance' });
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const IS_MOBILE = window.matchMedia('(max-width: 760px)').matches || /Mobi|Android|iPhone|iPad/.test(navigator.userAgent);
+const COLS = [[1.0, 0.30, 0.45], [1.0, 0.60, 0.22], [1.0, 0.90, 0.32], [0.40, 0.95, 0.52], [0.28, 0.84, 1.0], [0.38, 0.46, 1.0], [0.76, 0.48, 1.0], [0.93, 0.94, 1.0]];
+const CNAME = ['红', '橙', '黄', '绿', '青', '蓝', '紫', '白'];
+const css = (c, a = 1) => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${a})`;
+
+// ---------- 状态 ----------
+const ST = {
+  dim: 2, m: 6, K: new Float32Array(64), n: IS_MOBILE ? 2600 : 4500,
+  rMax: 0.08, rMax3: 0.12, half: 0.04, forceK: 10, beta: 0.3,
+  speed: 1, paused: false, trails: 0.6, glow: 1, size: 1,
+  tool: 'stir', brush: 0, auto: false, seed: 0, name: '', preset: null,
+  wx: 1, wy: 1,
+};
+const view = { x: 0.5, y: 0.5, zoom: 1, yaw: 0.6, pitch: 0.35, dist: 1.6, spin: 0.08 };
+
+// ---------- 计算线程 ----------
+const perf = { t: 0, ms: 0, st: 0, done: false };
+let host = null, waiting = false, snap = null, frameNo = 0, stats = null, simMs = 0;
+function makeHost() {
+  try {
+    const url = URL.createObjectURL(new Blob([SIM_SRC], { type: 'text/javascript' }));
+    const w = new Worker(url);
+    const h = { kind: 'worker', post: (m, tr) => w.postMessage(m, tr || []), cb: null };
+    w.onmessage = (e) => h.cb && h.cb(e.data);
+    w.onerror = (e) => { console.warn('worker 不可用，改用主线程', e.message); host = localHost(); host.cb = onSim; waiting = false; initSim(); };
+    return h;
+  } catch (e) { return localHost(); }
+}
+function localHost() { const L = new Life(40000); const h = { kind: 'local', cb: null }; h.post = (m) => lifeHandle(L, m, (out) => h.cb && h.cb(out)); return h; }
+function onSim(d) {
+  if (d.cmd !== 'frame') return;
+  waiting = false; snap = d; simMs = d.ms;
+  // 前 12 秒如果每步太慢，自动减少粒子数
+  if (d.steps > 0 && perf.t < 12 && !perf.done) {
+    perf.ms += d.ms; perf.st += d.steps;
+    if (perf.st > 90) { const per = perf.ms / perf.st; if (per > 20 && ST.n > 1800) { ST.n = Math.max(1800, Math.round(ST.n * 16 / per / 100) * 100); host.post({ cmd: 'resize', n: ST.n }); syncParamsUI(); updateCode(); toast('已自动减少粒子数', `这台设备上 ${ST.n.toLocaleString()} 个粒子更流畅，可在「参数」里调`); } perf.done = true; }
+  }
+  if (d.stats) { stats = d.stats; onStats(d.stats); }
+  uploadSnap(d);
+}
+function simParams() { return { rMax: ST.dim === 2 ? ST.rMax : ST.rMax3, half: ST.half, forceK: ST.forceK, beta: ST.beta, dt: 0.02 }; }
+function initSim() {
+  if (ST.dim === 2) { const a = canvas.clientWidth / Math.max(1, canvas.clientHeight); ST.wx = Math.sqrt(a); ST.wy = 1 / Math.sqrt(a); view.x = ST.wx / 2; view.y = ST.wy / 2; }
+  host.post({ cmd: 'init', dim: ST.dim, wx: ST.wx, wy: ST.wy, R: 0.5, m: ST.m, K: ST.K, params: simParams(), n: ST.n });
+}
+const sendK = () => host.post({ cmd: 'K', K: ST.K, m: ST.m });
+const sendParams = () => host.post({ cmd: 'params', params: simParams() });
+
+// ---------- WebGL ----------
+function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + '\n' + src); return s; }
+function prog(vs, fs) {
+  const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) { const a = gl.getActiveUniform(p, i); u[a.name.replace('[0]', '')] = gl.getUniformLocation(p, a.name); }
+  return { p, u };
+}
+const HDR = '#version 300 es\nprecision highp float;\n';
+const VS_FULL = HDR + 'out vec2 vUv; void main(){ vec2 p = vec2(float((gl_VertexID<<1)&2), float(gl_VertexID&2)); vUv = p; gl_Position = vec4(p*2.-1., 0., 1.); }';
+const P = {
+  p2: prog(HDR + `layout(location=0) in vec2 aPos; layout(location=1) in float aType;
+    uniform vec2 uOff, uCam, uScale; uniform float uSize; uniform vec3 uCol[8];
+    out vec3 vCol;
+    void main(){ vec2 p = (aPos + uOff - uCam)*uScale; gl_Position = vec4(p.x, -p.y, 0., 1.); gl_PointSize = uSize; vCol = uCol[int(aType + 0.5)]; }`,
+    HDR + `in vec3 vCol; uniform float uGain; out vec4 o;
+    void main(){ vec2 d = gl_PointCoord*2. - 1.; float r2 = dot(d, d); if (r2 > 1.) discard;
+      float a = exp(-r2*4.5) + smoothstep(0.35, 0.0, r2)*0.6; o = vec4(vCol*a*uGain, 1.); }`),
+  p3: prog(HDR + `layout(location=0) in vec3 aPos; layout(location=1) in float aType;
+    uniform mat4 uVP; uniform float uSize, uNear, uFar; uniform vec3 uCol[8];
+    out vec3 vCol;
+    void main(){ vec4 c = uVP*vec4(aPos, 1.); gl_Position = c; gl_PointSize = clamp(uSize / c.w, 1., 64.);
+      float fog = clamp(1.25 - (c.w - uNear)/(uFar - uNear)*0.95, 0.3, 1.25); vCol = uCol[int(aType + 0.5)]*fog; }`,
+    HDR + `in vec3 vCol; uniform float uGain; out vec4 o;
+    void main(){ vec2 d = gl_PointCoord*2. - 1.; float r2 = dot(d, d); if (r2 > 1.) discard;
+      float a = exp(-r2*4.5) + smoothstep(0.35, 0.0, r2)*0.6; o = vec4(vCol*a*uGain, 1.); }`),
+  line: prog(HDR + `layout(location=0) in vec3 aPos; uniform mat4 uVP; void main(){ gl_Position = uVP*vec4(aPos, 1.); }`,
+    HDR + `uniform vec4 uColor; out vec4 o; void main(){ o = uColor; }`),
+  fade: prog(VS_FULL, HDR + `uniform vec4 uColor; out vec4 o; void main(){ o = uColor; }`),
+  down: prog(VS_FULL, HDR + `in vec2 vUv; uniform sampler2D uTex; uniform vec2 uPx; out vec4 o;
+    void main(){ vec3 c = texture(uTex, vUv + uPx*vec2(-1.,-1.)).rgb + texture(uTex, vUv + uPx*vec2(1.,-1.)).rgb + texture(uTex, vUv + uPx*vec2(-1.,1.)).rgb + texture(uTex, vUv + uPx*vec2(1.,1.)).rgb;
+      c *= 0.25; o = vec4(max(c - 0.05, 0.), 1.); }`),
+  blur: prog(VS_FULL, HDR + `in vec2 vUv; uniform sampler2D uTex; uniform vec2 uDir; out vec4 o;
+    void main(){ vec3 c = texture(uTex, vUv).rgb*0.2270;
+      c += (texture(uTex, vUv + uDir*1.3846).rgb + texture(uTex, vUv - uDir*1.3846).rgb)*0.3162;
+      c += (texture(uTex, vUv + uDir*3.2308).rgb + texture(uTex, vUv - uDir*3.2308).rgb)*0.0703;
+      o = vec4(c, 1.); }`),
+  comp: prog(VS_FULL, HDR + `in vec2 vUv; uniform sampler2D uTex, uBloom; uniform float uGlow, uExp; out vec4 o;
+    void main(){ vec3 c = max(texture(uTex, vUv).rgb, 0.) + max(texture(uBloom, vUv).rgb, 0.)*uGlow;
+      float m = max(max(c.r, c.g), c.b);
+      vec3 t = c*(1. - exp(-m*uExp))/max(m, 1e-4);
+      c = mix(t, vec3(max(max(t.r, t.g), t.b)), smoothstep(2., 9., m*uExp)*0.45);
+      vec2 q = vUv - 0.5; c *= 1. - dot(q, q)*0.35;
+      c = pow(c, vec3(0.95));
+      o = vec4(c, 1.); }`),
+};
+const emptyVAO = gl.createVertexArray();
+const CAP = 40000;
+const posBuf = gl.createBuffer(), typBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferData(gl.ARRAY_BUFFER, CAP * 12, gl.DYNAMIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, typBuf); gl.bufferData(gl.ARRAY_BUFFER, CAP, gl.DYNAMIC_DRAW);
+function makeVAO(dim) {
+  const v = gl.createVertexArray(); gl.bindVertexArray(v);
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, dim, gl.FLOAT, false, dim * 4, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, typBuf); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.UNSIGNED_BYTE, false, 1, 0);
+  gl.bindVertexArray(null); return v;
+}
+const VAO2 = makeVAO(2), VAO3 = makeVAO(3);
+const lineBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf); gl.bufferData(gl.ARRAY_BUFFER, 4096 * 12, gl.DYNAMIC_DRAW);
+const lineVAO = gl.createVertexArray(); gl.bindVertexArray(lineVAO); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0); gl.bindVertexArray(null);
+let nDraw = 0, snapDim = 2;
+function uploadSnap(d) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, d.pos);
+  gl.bindBuffer(gl.ARRAY_BUFFER, typBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, d.typ);
+  nDraw = d.n; snapDim = d.dim;
+}
+// 帧缓冲：累积（拖尾）+ 两级泛光
+const hasFloat = !!gl.getExtension('EXT_color_buffer_float');
+gl.getExtension('OES_texture_float_linear');
+function makeFBO(w, h) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  if (hasFloat) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  return { t, f, w, h };
+}
+let FB = null;
+const Q = { dpr: Math.min(IS_MOBILE ? 2 : 1.75, window.devicePixelRatio || 1), acc: 0, n: 0 };
+function resize() {
+  const dpr = Q.dpr, w = Math.max(2, Math.floor(canvas.clientWidth * dpr)), h = Math.max(2, Math.floor(canvas.clientHeight * dpr));
+  if (canvas.width === w && canvas.height === h && FB) return;
+  canvas.width = w; canvas.height = h;
+  if (FB) for (const k in FB) { gl.deleteTexture(FB[k].t); gl.deleteFramebuffer(FB[k].f); }
+  const qw = Math.max(2, w >> 2), qh = Math.max(2, h >> 2);
+  FB = { acc: makeFBO(w, h), q1: makeFBO(qw, qh), q2: makeFBO(qw, qh) };
+}
+function fullscreen(p) { gl.bindVertexArray(emptyVAO); gl.drawArrays(gl.TRIANGLES, 0, 3); }
+// 视图参数
+function scale2() { return Math.min(canvas.clientWidth / ST.wx, canvas.clientHeight / ST.wy) * view.zoom; } // CSS 像素 / 世界单位
+function mat4Persp(fov, asp, n, f) { const t = 1 / Math.tan(fov / 2), m = new Float32Array(16); m[0] = t / asp; m[5] = t; m[10] = (f + n) / (n - f); m[11] = -1; m[14] = 2 * f * n / (n - f); return m; }
+function mat4Mul(a, b) { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; }
+// 镜头平移：3D 时让培养皿避开面板
+let _shift = [0, 0];
+function lensShift() {
+  const W = canvas.clientWidth, H = canvas.clientHeight; let sx = 0, sy = 0;
+  const pan = $('#panel'), rc = pan.getBoundingClientRect();
+  if (W < 760) sy = rc.height / H * 0.9; else if (!pan.classList.contains('min')) sx = rc.right / W * 0.9;
+  if (window.__noShift) sx = sy = 0;
+  _shift = [lerp(_shift[0], sx, 0.1), lerp(_shift[1], sy, 0.1)];
+  return _shift;
+}
+function cam3() {
+  const cp = Math.cos(view.pitch), eye = [Math.sin(view.yaw) * cp * view.dist, Math.sin(view.pitch) * view.dist, Math.cos(view.yaw) * cp * view.dist];
+  const f = [-eye[0] / view.dist, -eye[1] / view.dist, -eye[2] / view.dist];
+  let r = [f[1] * 0 - f[2] * 1, f[2] * 0 - f[0] * 0, f[0] * 1 - f[1] * 0]; const rl = Math.hypot(...r); r = r.map(v => v / rl);
+  const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+  const V = new Float32Array([r[0], u[0], -f[0], 0, r[1], u[1], -f[1], 0, r[2], u[2], -f[2], 0, -(r[0] * eye[0] + r[1] * eye[1] + r[2] * eye[2]), -(u[0] * eye[0] + u[1] * eye[1] + u[2] * eye[2]), (f[0] * eye[0] + f[1] * eye[1] + f[2] * eye[2]), 1]);
+  const asp = canvas.width / canvas.height, fov = asp < 1 ? 2 * Math.atan(Math.tan(22 * Math.PI / 180) / asp) : 44 * Math.PI / 180;
+  const Pm = mat4Persp(fov, asp, 0.02, 20), sh = lensShift(); Pm[8] = -sh[0]; Pm[9] = -sh[1];
+  return { eye, f, r, u, fov, sh, vp: mat4Mul(Pm, V) };
+}
+let camMoving = 0;
+function render(dt) {
+  resize();
+  const W = canvas.width, H = canvas.height;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FB.acc.f); gl.viewport(0, 0, W, H);
+  // 拖尾：乘一个衰减系数，再减去一点（避免 8 位缓冲留下残影）
+  const k = ST.trails * (camMoving > 0 ? 0.5 : 1);
+  gl.enable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
+  gl.useProgram(P.fade.p);
+  if (k < 0.01) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  else {
+    gl.blendFunc(gl.ZERO, gl.SRC_ALPHA); gl.uniform4f(P.fade.u.uColor, 0, 0, 0, k); fullscreen();
+    if (!hasFloat) { gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); gl.blendFunc(gl.ONE, gl.ONE); gl.uniform4f(P.fade.u.uColor, 1.5 / 255, 1.5 / 255, 1.5 / 255, 0); fullscreen(); gl.blendEquation(gl.FUNC_ADD); }
+  }
+  gl.blendFunc(gl.ONE, gl.ONE);
+  const dpr = W / canvas.clientWidth;
+  const colFlat = new Float32Array(24); COLS.forEach((c, i) => colFlat.set(c, i * 3));
+  const density = ST.n / 4500;
+  if (nDraw > 0 && snapDim === 2 && ST.dim === 2) {
+    const p = P.p2; gl.useProgram(p.p); gl.bindVertexArray(VAO2);
+    const s = scale2();
+    gl.uniform2f(p.u.uScale, 2 * s / canvas.clientWidth, 2 * s / canvas.clientHeight);
+    gl.uniform2f(p.u.uCam, view.x, view.y);
+    gl.uniform1f(p.u.uSize, clamp(3.8 * ST.size * Math.pow(view.zoom, 0.65) * dpr, 1.5, 64));
+    gl.uniform1f(p.u.uGain, clamp(1.45 / Math.pow(density, 0.35) * (1 - ST.trails * 0.6), 0.2, 2.2));
+    gl.uniform3fv(p.u.uCol, colFlat);
+    const hw = canvas.clientWidth / 2 / s, hh = canvas.clientHeight / 2 / s;
+    const i0 = Math.floor((view.x - hw) / ST.wx), i1 = Math.floor((view.x + hw) / ST.wx), j0 = Math.floor((view.y - hh) / ST.wy), j1 = Math.floor((view.y + hh) / ST.wy);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { gl.uniform2f(p.u.uOff, i * ST.wx, j * ST.wy); gl.drawArrays(gl.POINTS, 0, nDraw); }
+  } else if (nDraw > 0 && snapDim === 3 && ST.dim === 3) {
+    const C = cam3(); view.C = C;
+    // 培养皿轮廓
+    const pts = []; const R = 0.5 * 1.04, N = 128;
+    const d = view.dist, rs = R * Math.sqrt(1 - (R * R) / (d * d)), cen = C.f.map(v => v * (R * R / d)).map((v, i) => v + 0);
+    for (let q = 0; q <= N; q++) { const a = q / N * Math.PI * 2; pts.push(cen[0] + (C.r[0] * Math.cos(a) + C.u[0] * Math.sin(a)) * rs, cen[1] + (C.r[1] * Math.cos(a) + C.u[1] * Math.sin(a)) * rs, cen[2] + (C.r[2] * Math.cos(a) + C.u[2] * Math.sin(a)) * rs); }
+    for (let q = 0; q <= N; q++) { const a = q / N * Math.PI * 2; pts.push(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(pts));
+    gl.useProgram(P.line.p); gl.uniformMatrix4fv(P.line.u.uVP, false, C.vp); gl.bindVertexArray(lineVAO);
+    gl.uniform4f(P.line.u.uColor, 0.10, 0.14, 0.22, 1); gl.drawArrays(gl.LINE_STRIP, 0, N + 1);
+    gl.uniform4f(P.line.u.uColor, 0.05, 0.07, 0.11, 1); gl.drawArrays(gl.LINE_STRIP, N + 1, N + 1);
+    const p = P.p3; gl.useProgram(p.p); gl.bindVertexArray(VAO3);
+    gl.uniformMatrix4fv(p.u.uVP, false, C.vp);
+    const projS = canvas.height / 2 / Math.tan(C.fov / 2);
+    gl.uniform1f(p.u.uSize, 0.0075 * ST.size * projS);
+    gl.uniform1f(p.u.uNear, view.dist - 0.55); gl.uniform1f(p.u.uFar, view.dist + 0.55);
+    gl.uniform1f(p.u.uGain, clamp(1.1 / Math.pow(ST.n / 4000, 0.35) * (1 - ST.trails * 0.5), 0.2, 2.2));
+    gl.uniform3fv(p.u.uCol, colFlat);
+    gl.drawArrays(gl.POINTS, 0, nDraw);
+  }
+  // 泛光
+  gl.disable(gl.BLEND);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FB.q1.f); gl.viewport(0, 0, FB.q1.w, FB.q1.h);
+  gl.useProgram(P.down.p); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, FB.acc.t); gl.uniform1i(P.down.u.uTex, 0); gl.uniform2f(P.down.u.uPx, 1 / W, 1 / H); fullscreen();
+  for (let it = 0; it < 2; it++) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, FB.q2.f); gl.useProgram(P.blur.p); gl.bindTexture(gl.TEXTURE_2D, FB.q1.t); gl.uniform1i(P.blur.u.uTex, 0); gl.uniform2f(P.blur.u.uDir, (1 + it) / FB.q1.w, 0); fullscreen();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, FB.q1.f); gl.bindTexture(gl.TEXTURE_2D, FB.q2.t); gl.uniform2f(P.blur.u.uDir, 0, (1 + it) / FB.q1.h); fullscreen();
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H);
+  gl.useProgram(P.comp.p);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, FB.acc.t); gl.uniform1i(P.comp.u.uTex, 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, FB.q1.t); gl.uniform1i(P.comp.u.uBloom, 1);
+  gl.uniform1f(P.comp.u.uGlow, ST.glow * 1.6); gl.uniform1f(P.comp.u.uExp, 1.15);
+  fullscreen();
+  gl.activeTexture(gl.TEXTURE0);
+}
+
+// ---------- 规则：预设 / 随机 / 变异 / 规则码 ----------
+function rng(seed) { let a = seed >>> 0 || 1; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const r05 = (v) => Math.round(v * 20) / 20;
+function setK(list, m) { ST.m = m; ST.K.fill(0); for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) ST.K[i * 8 + j] = list[i * m + j]; }
+function getK() { const a = []; for (let i = 0; i < ST.m; i++) for (let j = 0; j < ST.m; j++) a.push(ST.K[i * 8 + j]); return a; }
+function randomRules(seed, keepM = true) {
+  ST.seed = seed; const R = rng(seed);
+  if (!keepM) ST.m = 3 + Math.floor(R() * 5);
+  ST.K.fill(0); for (let i = 0; i < ST.m; i++) for (let j = 0; j < ST.m; j++) ST.K[i * 8 + j] = r05(R() * 2 - 1);
+  ST.name = `宇宙 #${seed}`; ST.preset = null;
+}
+function applyRules(opts = {}) {
+  sendK(); if (opts.params) sendParams(); if (opts.scatter) host.post({ cmd: 'scatter', n: ST.n });
+  buildMatrix(); buildBrush(); updateCode(); syncParamsUI(); markPreset(); $('#uname').textContent = ST.name;
+}
+function encode() {
+  const o = { d: ST.dim, m: ST.m, k: getK().map(v => Math.round(v * 20)), r: Math.round(ST.rMax * 1000), r3: Math.round(ST.rMax3 * 1000), h: Math.round(ST.half * 1000), f: ST.forceK, n: ST.n };
+  return 'PL1-' + btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function decode(code) {
+  try {
+    code = code.trim().replace(/^#/, ''); if (!code.startsWith('PL1-')) return false;
+    let b = code.slice(4).replace(/-/g, '+').replace(/_/g, '/'); while (b.length % 4) b += '=';
+    const o = JSON.parse(atob(b)); if (!o.m || !o.k || o.k.length !== o.m * o.m) return false;
+    setK(o.k.map(v => clamp(v / 20, -1, 1)), clamp(o.m, 2, 8));
+    ST.rMax = clamp((o.r || 80) / 1000, 0.02, 0.25); ST.rMax3 = clamp((o.r3 || 120) / 1000, 0.03, 0.3); ST.half = clamp((o.h || 40) / 1000, 0.005, 0.5); ST.forceK = clamp(o.f || 10, 1, 40);
+    ST.n = clamp(o.n || ST.n, 200, IS_MOBILE ? 8000 : 20000);
+    const dim = o.d === 3 ? 3 : 2; ST.name = '分享来的宇宙'; ST.preset = null;
+    if (dim !== ST.dim) { ST.dim = dim; initSim(); } else { sendParams(); host.post({ cmd: 'resize', n: ST.n }); }
+    return true;
+  } catch (e) { return false; }
+}
+function updateCode() { $('#code').value = encode(); }
+
+// ---------- 规则矩阵编辑器 ----------
+let selCell = null;
+function cellBg(v) { return v > 0 ? `rgba(60,225,150,${0.1 + 0.8 * v})` : v < 0 ? `rgba(255,75,110,${0.1 + 0.8 * -v})` : 'rgba(255,255,255,0.04)'; }
+const fmtV = (v) => v === 0 ? '0' : (v > 0 ? '+' : '−') + (Math.abs(v) >= 0.995 ? '1' : Math.abs(v).toFixed(2).replace(/^0/, '').replace(/0$/, ''));
+function relText(a, b, i, j) {
+  const A = CNAME[i], B = CNAME[j];
+  if (i === j) return a > 0.15 ? `${A}色喜欢同类 → 聚成团` : a < -0.15 ? `${A}色讨厌同类 → 各自散开` : `${A}色对同类无所谓`;
+  if (a > 0.15 && b < -0.15) return `${A}想靠近${B}，${B}却想躲开 → <b>${A}追${B}逃</b>`;
+  if (a < -0.15 && b > 0.15) return `${B}想靠近${A}，${A}却想躲开 → <b>${B}追${A}逃</b>`;
+  if (a > 0.15 && b > 0.15) return `互相喜欢 → 抱成一团`;
+  if (a < -0.15 && b < -0.15) return `互相讨厌 → 泾渭分明`;
+  return `关系比较淡`;
+}
+function showInfo(i, j) {
+  const a = ST.K[i * 8 + j], b = ST.K[j * 8 + i];
+  $('#mxInfo').innerHTML = `<span class="dot" style="background:${css(COLS[i])}"></span>${CNAME[i]} 对 <span class="dot" style="background:${css(COLS[j])}"></span>${CNAME[j]}：<b>${fmtV(a)}</b>（${a > 0.05 ? '想靠近' : a < -0.05 ? '想躲开' : '不在乎'}）<br><span style="color:var(--dim)">${relText(a, b, i, j)}</span>`;
+}
+function buildMatrix() {
+  const box = $('#mx'), m = ST.m; box.innerHTML = '';
+  box.style.gridTemplateColumns = `22px repeat(${m}, minmax(0, ${m <= 4 ? 52 : 40}px))`;
+  box.style.width = '100%';
+  const corner = document.createElement('div'); corner.className = 'corner'; corner.innerHTML = '行→列'; box.appendChild(corner);
+  for (let j = 0; j < m; j++) { const h = document.createElement('div'); h.className = 'hd'; h.innerHTML = `<i style="background:${css(COLS[j])};color:${css(COLS[j])}"></i>`; box.appendChild(h); }
+  for (let i = 0; i < m; i++) {
+    const h = document.createElement('div'); h.className = 'hd'; h.innerHTML = `<i style="background:${css(COLS[i])};color:${css(COLS[i])}"></i>`; box.appendChild(h);
+    for (let j = 0; j < m; j++) {
+      const c = document.createElement('div'); c.className = 'cell'; c.dataset.i = i; c.dataset.j = j;
+      const v = ST.K[i * 8 + j]; c.style.background = cellBg(v); c.textContent = fmtV(v);
+      let y0 = 0, v0 = 0, moved = false, down = false;
+      c.addEventListener('pointerdown', (e) => { e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (err) { } down = true; y0 = e.clientY; v0 = ST.K[i * 8 + j]; moved = false; selectCell(c, i, j); });
+      c.addEventListener('pointermove', (e) => {
+        if (!down) { return; }
+        const dy = e.clientY - y0; if (Math.abs(dy) > 4) moved = true;
+        if (moved) setCell(i, j, r05(clamp(v0 - dy / 90, -1, 1)));
+      });
+      const up = () => {
+        if (!down) return; down = false;
+        if (!moved) { const vals = [1, 0.5, 0, -0.5, -1], v = ST.K[i * 8 + j]; let nv = vals.find(x => x < v - 0.01); if (nv === undefined) nv = 1; setCell(i, j, nv); sound.blip(); }
+      };
+      c.addEventListener('pointerup', up); c.addEventListener('pointercancel', () => { down = false; });
+      c.addEventListener('pointerenter', () => { if (!down) showInfo(i, j); });
+      c.addEventListener('wheel', (e) => { e.preventDefault(); setCell(i, j, r05(clamp(ST.K[i * 8 + j] - e.deltaY * 0.002, -1, 1))); selectCell(c, i, j); }, { passive: false });
+      box.appendChild(c);
+    }
+  }
+  if (selCell) { const c = box.querySelector(`.cell[data-i="${selCell[0]}"][data-j="${selCell[1]}"]`); if (c) c.classList.add('sel'); showInfo(selCell[0], selCell[1]); }
+  else showInfo(0, Math.min(1, m - 1));
+}
+function selectCell(c, i, j) { document.querySelectorAll('#mx .cell.sel').forEach(e => e.classList.remove('sel')); c.classList.add('sel'); selCell = [i, j]; showInfo(i, j); }
+let kTimer = 0;
+function setCell(i, j, v) {
+  ST.K[i * 8 + j] = v; ST.preset = null; if (!ST.name.endsWith('（改）')) ST.name = (ST.name || '宇宙') + '（改）';
+  const c = document.querySelector(`#mx .cell[data-i="${i}"][data-j="${j}"]`); if (c) { c.style.background = cellBg(v); c.textContent = fmtV(v); }
+  showInfo(i, j); $('#uname').textContent = ST.name; markPreset();
+  clearTimeout(kTimer); kTimer = setTimeout(() => { sendK(); updateCode(); }, 30);
+}
+function refreshMatrixCells() {
+  document.querySelectorAll('#mx .cell').forEach(c => { const v = ST.K[c.dataset.i * 8 + +c.dataset.j]; c.style.background = cellBg(v); c.textContent = fmtV(v); });
+  if (selCell) showInfo(selCell[0], selCell[1]);
+}
+
+// ---------- 预设 ----------
+function presetById(id) { return PRESETS.find(p => p.id === id); }
+function loadPreset(p, scatter = true) {
+  setK(p.K, p.m); ST.rMax = p.r || 0.08; ST.rMax3 = p.r3 || ST.rMax * 1.5; ST.half = p.h || 0.04; ST.forceK = p.f || 10;
+  ST.name = p.name; ST.preset = p.id; ST.seed = 0;
+  const dim = p.dim || 2;
+  if (dim !== ST.dim) { setDim(dim); initSim(); applyRules({}); }
+  else applyRules({ params: true, scatter });
+  toast(p.name, p.desc);
+}
+function markPreset() { document.querySelectorAll('.pre').forEach(el => el.classList.toggle('on', el.dataset.id === ST.preset)); }
+function buildPresets() {
+  const box = $('#presets'); box.innerHTML = '';
+  for (const p of PRESETS) {
+    const el = document.createElement('button'); el.className = 'pre'; el.dataset.id = p.id;
+    el.innerHTML = `<b>${p.name}</b><span>${p.desc}</span><div class="dots">${Array.from({ length: p.m }, (_, i) => `<i style="background:${css(COLS[i])}"></i>`).join('')}</div>`;
+    el.onclick = () => { sound.blip(); stopAuto(); loadPreset(p); };
+    box.appendChild(el);
+  }
+}
+
+// ---------- 参数面板 ----------
+const PRM = [
+  { k: 'n', label: '粒子数', min: 300, max: IS_MOBILE ? 8000 : 20000, step: 100, fmt: v => v.toLocaleString(), sub: '越多越壮观，也越吃电脑' },
+  { k: 'm', label: '颜色种类', min: 2, max: 8, step: 1, fmt: v => v + ' 种', sub: '种类越多，关系越复杂' },
+  { k: 'r', label: '作用距离', min: 0.03, max: 0.2, step: 0.005, fmt: v => v.toFixed(3), sub: '决定"生物"的个头' },
+  { k: 'half', label: '摩擦', min: 0.005, max: 0.25, step: 0.005, fmt: v => v < 0.02 ? '很黏稠' : v < 0.06 ? '适中' : v < 0.12 ? '滑溜' : '几乎无摩擦', sub: '越滑溜，运动越狂野' },
+  { k: 'forceK', label: '力度', min: 2, max: 30, step: 0.5, fmt: v => v.toFixed(1), sub: '' },
+  { k: 'speed', label: '时间流速', min: 0.1, max: 3, step: 0.05, fmt: v => v.toFixed(2) + '×', sub: '' },
+  { k: 'trails', label: '拖尾', min: 0, max: 0.96, step: 0.01, fmt: v => v < 0.05 ? '关' : Math.round(v * 100) + '%', sub: '' },
+  { k: 'glow', label: '辉光', min: 0, max: 2, step: 0.05, fmt: v => v.toFixed(2), sub: '' },
+  { k: 'size', label: '粒子大小', min: 0.4, max: 2.5, step: 0.05, fmt: v => v.toFixed(2) + '×', sub: '' },
+];
+function prmGet(k) { if (k === 'r') return ST.dim === 2 ? ST.rMax : ST.rMax3; return ST[k]; }
+function prmSet(k, v) {
+  if (k === 'r') { if (ST.dim === 2) ST.rMax = v; else ST.rMax3 = v; sendParams(); }
+  else if (k === 'half' || k === 'forceK') { ST[k] = v; sendParams(); }
+  else if (k === 'n') { ST.n = v | 0; host.post({ cmd: 'resize', n: ST.n }); }
+  else if (k === 'm') {
+    const old = ST.m; const R = rng(Date.now() & 0xffff);
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) if ((i >= old || j >= old) && (i < v && j < v)) ST.K[i * 8 + j] = r05(R() * 2 - 1);
+    ST.m = v; if (ST.brush >= v) ST.brush = 0; sendK(); buildMatrix(); buildBrush(); ST.preset = null; markPreset();
+  }
+  else ST[k] = v;
+  if (k !== 'speed' && k !== 'trails' && k !== 'glow' && k !== 'size') updateCode();
+  syncParamsUI();
+}
+function buildParamsUI() {
+  const box = $('#prms'); box.innerHTML = '';
+  for (const p of PRM) {
+    const el = document.createElement('div'); el.className = 'prm'; el.dataset.k = p.k;
+    el.innerHTML = `<div class="pl"><span>${p.label}</span><b></b></div><input type="range" min="${p.min}" max="${p.max}" step="${p.step}"><div class="ps">${p.sub}</div>`;
+    const inp = el.querySelector('input'); inp.addEventListener('input', () => prmSet(p.k, +inp.value));
+    box.appendChild(el);
+  }
+  syncParamsUI();
+}
+function syncParamsUI() {
+  for (const p of PRM) {
+    const el = document.querySelector(`.prm[data-k="${p.k}"]`); if (!el) continue;
+    const v = prmGet(p.k), inp = el.querySelector('input'); if (document.activeElement !== inp) inp.value = v;
+    el.querySelector('b').textContent = p.fmt(v);
+  }
+}
+
+// ---------- 自动漫游 ----------
+const AUTO = { t: 0, from: null, to: null, blend: 1 };
+function startAuto() { ST.auto = true; AUTO.t = 0; $('#bAuto').classList.add('on'); nextUniverse(); }
+function stopAuto() { ST.auto = false; $('#bAuto').classList.remove('on'); AUTO.blend = 1; }
+function nextUniverse() {
+  const from = Float32Array.from(ST.K); const oldM = ST.m;
+  const r = Math.random();
+  if (r < 0.55) { const p = LIB[Math.floor(Math.random() * LIB.length)]; setK(p.K, p.m); ST.name = p.name; ST.rMax = p.r || 0.08; ST.half = p.h || 0.04; ST.forceK = p.f || 10; ST.preset = p.id || null; sendParams(); }
+  else if (r < 0.8) { randomRules(Math.floor(Math.random() * 99999) + 1); }
+  else { mutate(0.45, 3); ST.name = (ST.name.replace(/（改）|（变异）/g, '')) + '（变异）'; }
+  const to = Float32Array.from(ST.K);
+  if (ST.m !== oldM) { sendK(); AUTO.blend = 1; } else { AUTO.from = from; AUTO.to = to; AUTO.blend = 0; ST.K.set(from); }
+  buildMatrix(); updateCode(); syncParamsUI(); markPreset(); $('#uname').textContent = ST.name;
+  toast(ST.name, '自动漫游 · 每 20 秒换一个宇宙');
+}
+function mutate(amt = 0.35, cells = 2) {
+  for (let c = 0; c < cells; c++) { const i = Math.floor(Math.random() * ST.m), j = Math.floor(Math.random() * ST.m); ST.K[i * 8 + j] = r05(clamp(ST.K[i * 8 + j] + (Math.random() * 2 - 1) * amt * 2, -1, 1)); }
+}
+
+// ---------- 交互：工具与相机 ----------
+const ptrs = new Map(); let pinch = null, toolState = null, paintQ = [];
+function screenToWorld2(px, py) { const s = scale2(); let x = view.x + (px - canvas.clientWidth / 2) / s, y = view.y + (py - canvas.clientHeight / 2) / s; x = ((x % ST.wx) + ST.wx) % ST.wx; y = ((y % ST.wy) + ST.wy) % ST.wy; return [x, y, 0]; }
+function screenToWorld3(px, py) {
+  const C = view.C || cam3(); const asp = canvas.clientWidth / canvas.clientHeight, th = Math.tan(C.fov / 2);
+  const sh = C.sh || [0, 0]; const nx = (px / canvas.clientWidth * 2 - 1 - sh[0]) * th * asp, ny = (1 - py / canvas.clientHeight * 2 - sh[1]) * th;
+  const dir = [C.f[0] + C.r[0] * nx + C.u[0] * ny, C.f[1] + C.r[1] * nx + C.u[1] * ny, C.f[2] + C.r[2] * nx + C.u[2] * ny];
+  const t = -(C.eye[0] * C.f[0] + C.eye[1] * C.f[1] + C.eye[2] * C.f[2]) / (dir[0] * C.f[0] + dir[1] * C.f[1] + dir[2] * C.f[2]);
+  return [C.eye[0] + dir[0] * t, C.eye[1] + dir[1] * t, C.eye[2] + dir[2] * t];
+}
+const toWorld = (px, py) => ST.dim === 2 ? screenToWorld2(px, py) : screenToWorld3(px, py);
+function worldPerPx() { if (ST.dim === 2) return 1 / scale2(); const C = view.C || cam3(); return 2 * view.dist * Math.tan(C.fov / 2) / canvas.clientHeight; }
+canvas.addEventListener('pointerdown', (e) => {
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() });
+  sound.init();
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, zoom: view.zoom, dist: view.dist, vx: view.x, vy: view.y }; toolState = null; return; }
+  const tool = e.button === 2 || e.button === 1 ? 'view' : ST.tool;
+  toolState = { tool, x: e.clientX, y: e.clientY, vx: 0, vy: 0, last: performance.now() };
+  if (tool === 'stir') sound.whoosh(1.2);
+});
+canvas.addEventListener('pointermove', (e) => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  if (ptrs.size === 2 && pinch) {
+    const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    if (ST.dim === 2) { view.zoom = clamp(pinch.zoom * d / pinch.d, 0.35, 12); const s = scale2(); view.x = pinch.vx - (cx - pinch.cx) / s; view.y = pinch.vy - (cy - pinch.cy) / s; }
+    else view.dist = clamp(pinch.dist * pinch.d / d, 0.7, 4);
+    camMoving = 0.3; return;
+  }
+  if (!toolState) return;
+  const now = performance.now(), dtp = Math.max(1, now - toolState.last) / 1000; toolState.last = now;
+  toolState.x = e.clientX; toolState.y = e.clientY;
+  if (toolState.tool === 'view') {
+    if (ST.dim === 2) { const s = scale2(); view.x -= dx / s; view.y -= dy / s; camMoving = 0.3; }
+    else { view.yaw -= dx * 0.006; view.pitch = clamp(view.pitch + dy * 0.006, -1.45, 1.45); view.spinHold = 2.5; }
+  } else {
+    const k = worldPerPx();
+    toolState.vx = lerp(toolState.vx, dx * k / dtp, 0.5); toolState.vy = lerp(toolState.vy, dy * k / dtp, 0.5);
+  }
+});
+const endPtr = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (ptrs.size === 0) toolState = null; };
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (ST.dim === 2) {
+    const before = [view.x + (e.clientX - canvas.clientWidth / 2) / scale2(), view.y + (e.clientY - canvas.clientHeight / 2) / scale2()];
+    view.zoom = clamp(view.zoom * Math.exp(-e.deltaY * 0.0015), 0.35, 12);
+    const s = scale2(); view.x = before[0] - (e.clientX - canvas.clientWidth / 2) / s; view.y = before[1] - (e.clientY - canvas.clientHeight / 2) / s;
+    camMoving = 0.25;
+  } else view.dist = clamp(view.dist * Math.exp(e.deltaY * 0.0012), 0.7, 4);
+}, { passive: false });
+// 当前帧的外力
+function activeTools() {
+  if (!toolState || toolState.tool === 'view' || toolState.tool === 'paint') return [];
+  const [x, y, z] = toWorld(toolState.x, toolState.y); const k = worldPerPx();
+  const r = (IS_MOBILE ? 70 : 90) * k;
+  if (toolState.tool === 'stir') {
+    let vx = toolState.vx, vy = toolState.vy, vz = 0;
+    if (ST.dim === 3) { const C = view.C; const a = vx, b = -vy; vx = C.r[0] * a + C.u[0] * b; vy = C.r[1] * a + C.u[1] * b; vz = C.r[2] * a + C.u[2] * b; }
+    toolState.vx *= 0.85; toolState.vy *= 0.85;
+    return [{ x, y, z, r, mode: 'stir', dx: vx, dy: vy, dz: vz, s: 9 }];
+  }
+  return [{ x, y, z, r: r * 1.4, mode: toolState.tool, s: 4 * r * 10 }];
+}
+function takePaint() {
+  if (!toolState || toolState.tool !== 'paint') return null;
+  const [x, y, z] = toWorld(toolState.x, toolState.y); const k = worldPerPx();
+  return [{ x, y, z, r: 26 * k, type: ST.brush, add: snap && snap.n < ST.n * 1.5 }];
+}
+
+// ---------- 统计 / 提示 / 声音 ----------
+let lastBlobs = 0, fpsAcc = 0, fpsN = 0, fps = 60;
+function onStats(s) {
+  if (s.blobs > lastBlobs + 1 && Math.random() < 0.6) sound.bell();
+  lastBlobs = s.blobs;
+}
+function updateStat() {
+  const n = snap ? snap.n : ST.n;
+  $('#stat').textContent = `${n.toLocaleString()} 粒子 · ${stats ? stats.blobs : '—'} 个团块 · ${Math.round(fps)} fps`;
+}
+let toastTimer = 0;
+function toast(a, b) { const el = $('#toast'); el.querySelector('.a').textContent = a; el.querySelector('.b').textContent = b || ''; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2600); }
+const sound = new SpaceAudio();
+
+// ---------- 主循环 ----------
+let lastT = performance.now(), stepAcc = 0;
+function frame(now) {
+  const raw = (now - lastT) / 1000, dt = Math.min(0.1, raw); lastT = now;
+  if (!window.__manual) tick(dt, raw);
+  requestAnimationFrame(frame);
+}
+function tickPre(dt) {
+  perf.t += dt;
+  // 自动漫游：平滑过渡规则
+  if (ST.auto) {
+    AUTO.t += dt;
+    if (AUTO.blend < 1) { AUTO.blend = Math.min(1, AUTO.blend + dt / 3); const e = AUTO.blend * AUTO.blend * (3 - 2 * AUTO.blend); for (let i = 0; i < 64; i++) ST.K[i] = lerp(AUTO.from[i], AUTO.to[i], e); if (frameNo % 3 === 0 || AUTO.blend >= 1) { sendK(); refreshMatrixCells(); } }
+    if (AUTO.t > 20) { AUTO.t = 0; nextUniverse(); }
+  }
+  if (ST.dim === 3 && !(toolState && toolState.tool === 'view')) { view.spinHold = Math.max(0, (view.spinHold || 0) - dt); if (view.spinHold <= 0) view.yaw += view.spin * dt; }
+  camMoving = Math.max(0, camMoving - dt);
+}
+function frameMsg(dt) {
+  let steps = 0; if (!ST.paused) { stepAcc += ST.speed * dt * 60; steps = Math.min(4, Math.floor(stepAcc)); stepAcc -= steps; if (stepAcc > 2) stepAcc = 0; }
+  frameNo++;
+  return { cmd: 'frame', steps, tools: activeTools(), paint: takePaint(), stats: frameNo % 30 === 0 };
+}
+function tick(dt, raw = dt) {
+  tickPre(dt);
+  if (!waiting) { waiting = true; host.post(frameMsg(dt)); }
+  render(dt);
+  fpsAcc += raw; fpsN++; if (fpsAcc > 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; updateStat(); adaptQuality(); }
+}
+// 录屏用：等这一帧算完再画
+function syncTick(dt) {
+  return new Promise((res) => {
+    tickPre(dt);
+    const h = host, old = h.cb;
+    h.cb = (d) => { h.cb = old; old(d); render(dt); fps = 60; updateStat(); res(); };
+    waiting = true; h.post(frameMsg(dt));
+  });
+}
+function warm(steps) { return new Promise((res) => { const h = host, old = h.cb; h.cb = (d) => { h.cb = old; old(d); res(); }; waiting = true; h.post({ cmd: 'frame', steps, budget: 1e6 }); }); }
+function adaptQuality() {
+  const max = Math.min(IS_MOBILE ? 2 : 1.75, window.devicePixelRatio || 1);
+  if (fps < 40 && Q.dpr > 0.75 && (!snap || simMs < 30)) Q.dpr = Math.max(0.75, Q.dpr - 0.25);
+  else if (fps > 57 && Q.dpr < max) Q.dpr = Math.min(max, Q.dpr + 0.125);
+}
+
+// ---------- 按钮 ----------
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+  for (const t of ['rules', 'world', 'params']) $('#t-' + t).hidden = t !== b.dataset.tab;
+  $('#panel').classList.remove('min'); $('#pMin').textContent = '收起'; panelH();
+});
+$('#pMin').onclick = () => { const p = $('#panel'); p.classList.toggle('min'); $('#pMin').textContent = p.classList.contains('min') ? '展开' : '收起'; panelH(); };
+function panelH() { requestAnimationFrame(() => document.documentElement.style.setProperty('--panel-h', $('#panel').getBoundingClientRect().height + 'px')); }
+document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => {
+  ST.tool = b.dataset.tool; document.querySelectorAll('[data-tool]').forEach(x => x.classList.toggle('on', x === b));
+  $('#brush').classList.toggle('show', ST.tool === 'paint'); sound.blip();
+});
+function buildBrush() {
+  if (ST.brush >= ST.m) ST.brush = 0;
+  const box = $('#brush'); box.innerHTML = '';
+  for (let i = 0; i < ST.m; i++) { const d = document.createElement('i'); d.style.background = css(COLS[i]); d.style.color = css(COLS[i]); d.title = CNAME[i]; d.classList.toggle('on', i === ST.brush); d.onclick = () => { ST.brush = i; buildBrush(); }; box.appendChild(d); }
+}
+$('#bRand').onclick = () => { sound.blip(); stopAuto(); randomRules(Math.floor(Math.random() * 99999) + 1); applyRules({ scatter: false }); toast(ST.name, '一张全新的随机规则表'); };
+$('#bMut').onclick = () => { sound.blip(); stopAuto(); mutate(); ST.name = ST.name.replace(/（改）|（变异）/g, '') + '（变异）'; ST.preset = null; applyRules({}); };
+$('#bSym').onclick = () => { sound.blip(); stopAuto(); for (let i = 0; i < ST.m; i++) for (let j = i + 1; j < ST.m; j++) { const v = r05((ST.K[i * 8 + j] + ST.K[j * 8 + i]) / 2); ST.K[i * 8 + j] = ST.K[j * 8 + i] = v; } ST.name = ST.name.replace(/（.*）/g, '') + '（对称）'; ST.preset = null; applyRules({}); toast('改成了对称规则', '看看追逐是不是停下来了'); };
+$('#bNeg').onclick = () => { sound.blip(); stopAuto(); for (let i = 0; i < 64; i++) ST.K[i] = -ST.K[i]; ST.name = ST.name.replace(/（.*）/g, '') + '（反转）'; ST.preset = null; applyRules({}); };
+$('#bAuto').onclick = () => { sound.blip(); ST.auto ? stopAuto() : startAuto(); };
+$('#b3d').onclick = () => { sound.blip(); toggle3d(); };
+function setDim(d) {
+  ST.dim = d; $('#b3d').textContent = ST.dim === 3 ? '切换到 2D' : '切换到 3D';
+  if (ST.dim === 3) { ST.n = Math.min(ST.n, IS_MOBILE ? 2600 : 4000); view.dist = 1.75; ST.trails = Math.min(ST.trails, 0.5); }
+  else { ST.trails = Math.max(ST.trails, 0.6); view.zoom = 1; }
+  document.querySelectorAll('[data-tool]').forEach(x => { if (x.dataset.tool === 'view') x.textContent = ST.dim === 3 ? '旋转' : '视角'; });
+}
+function toggle3d() {
+  setDim(ST.dim === 2 ? 3 : 2);
+  initSim(); syncParamsUI(); updateCode();
+  toast(ST.dim === 3 ? '3D 培养皿' : '2D 无限平面', ST.dim === 3 ? '同一张规则表，在三维空间里长成什么样？拖动「旋转」看看' : '世界首尾相接，没有边界');
+}
+$('#bReset').onclick = () => { sound.blip(); host.post({ cmd: 'scatter', n: ST.n }); };
+$('#bCopy').onclick = () => {
+  const v = $('#code').value; const ok = () => toast('规则码已复制', '粘贴给朋友，他就能看到同一个宇宙');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(ok, () => { $('#code').select(); document.execCommand('copy'); ok(); });
+  else { $('#code').select(); document.execCommand('copy'); ok(); }
+};
+$('#bPaste').onclick = async () => {
+  let v = null; try { if (navigator.clipboard && navigator.clipboard.readText) v = await navigator.clipboard.readText(); } catch (e) { }
+  if (!v || !v.includes('PL1-')) v = window.prompt('把规则码粘贴到这里：', '');
+  if (!v) return; const m = v.match(/PL1-[A-Za-z0-9_-]+/);
+  if (m && decode(m[0])) { stopAuto(); applyRules({}); toast('已载入', ST.name); } else toast('规则码不对', '要以 PL1- 开头');
+};
+$('#bPause').onclick = () => { ST.paused = !ST.paused; $('#bPause').textContent = ST.paused ? '继续' : '暂停'; $('#bPause').classList.toggle('on', ST.paused); };
+$('#bSound').onclick = () => { sound.toggle(); $('#bSound').classList.toggle('on', sound.on); };
+$('#bFull').onclick = () => { const d = document.documentElement; if (!document.fullscreenElement) (d.requestFullscreen || d.webkitRequestFullscreen || (() => { })).call(d); else document.exitFullscreen && document.exitFullscreen(); };
+$('#bHelp').onclick = () => $('#help').classList.add('show');
+$('#helpClose').onclick = () => $('#help').classList.remove('show');
+$('#help').onclick = (e) => { if (e.target.id === 'help') $('#help').classList.remove('show'); };
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+  const k = e.key.toLowerCase();
+  if (k === ' ') { e.preventDefault(); $('#bPause').click(); }
+  else if (k === 'r') $('#bRand').click(); else if (k === 'm') $('#bMut').click(); else if (k === 's') $('#bReset').click();
+  else if (k === '3') toggle3d(); else if (k === 'a') $('#bAuto').click();
+  else if (k === 'escape') $('#help').classList.remove('show');
+});
+window.addEventListener('resize', () => panelH());
+
+// ---------- 启动 ----------
+if (!gl) { document.body.innerHTML = '<div style="padding:40px;color:#fff;font-family:sans-serif">这个浏览器不支持 WebGL2，换 Chrome / Safari / Edge 试试。</div>'; }
+host = makeHost(); host.cb = onSim;
+let started = false;
+{
+  const h = location.hash; let ok = false;
+  if (h && h.includes('PL1-')) ok = decode(h.slice(1));
+  if (!ok) { const p = PRESETS[0]; setK(p.K, p.m); ST.rMax = p.r || 0.08; ST.half = p.h || 0.04; ST.forceK = p.f || 10; ST.name = p.name; ST.preset = p.id; }
+}
+if (IS_MOBILE) $('#panel').classList.add('min'), $('#pMin').textContent = '展开';
+resize(); initSim(); buildPresets(); buildParamsUI(); applyRules({ params: true }); buildBrush(); panelH();
+$('#uname').textContent = ST.name;
+requestAnimationFrame((t) => { lastT = t; requestAnimationFrame(frame); setTimeout(() => $('#loading').classList.add('gone'), 200); });
+setTimeout(() => toast('粒子生命', '几千个光点，只遵守一张"好恶表"'), 600);
+window.__ST = ST; window.__view = view; window.__tick = tick; window.__loadPreset = (i) => loadPreset(PRESETS[i]); window.__PRESETS = PRESETS;
+window.__toggle3d = toggle3d; window.__nextUniverse = nextUniverse; window.__host = () => host; window.__waiting = () => waiting;
+window.__toolState = (t) => { toolState = t; }; window.__syncTick = syncTick; window.__warm = warm; window.__render = render;
+window.__renderAudio = async (dur, events) => {
+  const sr = 44100, oc = new OfflineAudioContext(2, Math.ceil(sr * dur), sr);
+  const a = new SpaceAudio(); a.init(oc); a.on = true;
+  let rs = 7; const rnd = () => { rs = (rs * 16807) % 2147483647; return rs / 2147483647; };
+  const mr = Math.random; Math.random = rnd;
+  for (let t = 0.8; t < dur - 1; t += 1.5) { a.tOff = t; a.bell(); }
+  for (const [t, name, arg] of events) { a.tOff = t; a[name](arg); }
+  Math.random = mr;
+  const buf = await oc.startRendering();
+  const L0 = buf.getChannelData(0), R0 = buf.getChannelData(1), n = L0.length;
+  const wav = new DataView(new ArrayBuffer(44 + n * 4));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) wav.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); wav.setUint32(4, 36 + n * 4, true); w(8, 'WAVEfmt '); wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 2, true);
+  wav.setUint32(24, sr, true); wav.setUint32(28, sr * 4, true); wav.setUint16(32, 4, true); wav.setUint16(34, 16, true); w(36, 'data'); wav.setUint32(40, n * 4, true);
+  for (let i = 0; i < n; i++) { wav.setInt16(44 + i * 4, clamp(L0[i], -1, 1) * 32767, true); wav.setInt16(46 + i * 4, clamp(R0[i], -1, 1) * 32767, true); }
+  let bin = ''; const u8 = new Uint8Array(wav.buffer); for (let i = 0; i < u8.length; i += 32768) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 32768));
+  return btoa(bin);
+};
+
+</script>
+</body>
+</html>
