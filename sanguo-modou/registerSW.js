@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/dabanzhuan/sanguo-modou/sw.js', { scope: '/dabanzhuan/sanguo-modou/' })})}

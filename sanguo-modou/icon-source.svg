@@ -1,0 +1,14 @@
+<!-- PWA 图标源图（512x512）。纯矢量图形，不依赖任何字体，避免不同系统渲染 SVG 时因缺少中文字体
+     导致文字变成方块。配色取自游戏水墨风变量（desk 深底、seal 印章红、paper 米黄）。
+     图案是一枚盖在墨色宣纸上的印章：三道横向墨迹代表"三"（三国），三笔粗细、角度略有差异，
+     模拟手写毛笔的不规则感。用 npm run gen-icons 从这张源图生成各尺寸 PNG，见 pwa-assets.config.js。 -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#1f1914"/>
+  <rect x="96" y="96" width="320" height="320" rx="18" fill="#a8321f"/>
+  <rect x="112" y="112" width="288" height="288" rx="10" fill="none" stroke="#efe4cb" stroke-width="6"/>
+  <g fill="#efe4cb">
+    <rect x="186" y="176" width="140" height="30" rx="15" transform="rotate(-1.2 256 191)"/>
+    <rect x="201" y="242" width="110" height="26" rx="13" transform="rotate(1 256 255)"/>
+    <rect x="171" y="306" width="170" height="32" rx="16" transform="rotate(-0.6 256 322)"/>
+  </g>
+</svg>
