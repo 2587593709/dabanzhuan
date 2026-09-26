@@ -1,13 +1,96 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sanguo-modou</title>
-    <script type="module" crossorigin src="/dabanzhuan/sanguo-modou/assets/index-ChSxWasY.js"></script>
-    <link rel="stylesheet" crossorigin href="/dabanzhuan/sanguo-modou/assets/index-CePf46A4.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
-</html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#241d17">
+<title>三国墨战 · 天下篇</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/dabanzhuan/sanguo-modou/assets/index-D2oRnFV6.js"></script>
+  <link rel="stylesheet" crossorigin href="/dabanzhuan/sanguo-modou/assets/index-BMV3mlzg.css">
+</head><body>
+<!-- 界面骨架：源自 三国墨战_M6_卫队.html（scripts/split-html.mjs 生成） -->
+<div id="title" class="screen"><div class="wrap">
+  <h1>三国墨战</h1><div class="sub" id="tSub">公元一九四年 · 群雄割据</div><div class="stamp" id="tStamp">天下篇 · 十九路诸侯</div>
+  <div class="scentabs" id="scentabs"></div>
+  <p class="scendesc" id="scenDesc"></p>
+  <canvas id="tmap"></canvas><div style="font-size:12px;color:#5a4e40;margin:-8px 0 12px">点地图上的势力可跳到对应卡片</div>
+  <div class="diffrow" id="diffrow"></div>
+  <div class="fgrid" id="fgrid"></div>
+  <div class="tbtns"><button id="loadBtn">读取存档</button><button id="histBtn" class="red">历史战役</button><button id="heroBtn" class="red">名将传</button><button id="drillBtn">会战演习</button><button id="setBtn">设置</button></div>
+  <p style="font-size:12px;color:#5a4e40;margin-top:18px;text-align:center">选择剧本与势力开始游戏（全国 145 据点，势力、城池与武将名录对齐柱子三国 1.9）。电脑、手机、平板均可游玩。</p>
+</div></div>
+<div id="game" class="screen">
+  <header id="top">
+    <span class="seal" id="tSeal">曹</span>
+    <div class="tinfo"><b id="tName"></b><span id="tDate"></span></div>
+    <div class="res"><span>金 <b id="tGold"></b><i id="tGoldD"></i></span><span>粮 <b id="tGrain"></b><i id="tGrainD"></i></span><span class="hide-s">兵 <b id="tTroops"></b></span><span class="hide-s">城 <b id="tCities"></b></span></div>
+    <div class="spacer"></div>
+    <nav id="tNav"><button data-m="fac">形势</button><button data-m="gens">武将</button><button data-m="tre">宝库</button><button data-m="dip">外交</button><button data-m="save">存档</button><button data-m="help">说明</button><button data-m="fog" id="fogBtn">迷雾</button></nav>
+    <button id="menuBtn">☰</button>
+    <button id="endBtn" class="red">结束回合</button>
+  </header>
+  <div id="main">
+    <div id="mapbox"><canvas id="map"></canvas><div id="zoomCtl"><button id="zin">＋</button><button id="zout">－</button><button id="zfit">⌂</button></div><div id="toast"></div><canvas id="mini2"></canvas></div>
+    <aside id="side"><div id="sideHandle"><span></span></div><div id="sideBody"></div></aside>
+  </div>
+</div>
+<div id="bmenu" class="screen mzb"><div class="mwrap">
+  <h1>三国墨战</h1><div class="sub">M1 · 水墨会战</div>
+  <div class="bcard">
+    <div class="ctitle"><span class="seal">史</span>濮阳之战<small>兴平元年 · 公元194年</small></div>
+    <p class="intro" id="pyIntro"></p>
+    <div class="row"><button class="fac" data-py="0" style="--c:#4f6a8f"><span class="seal" style="background:#4f6a8f">曹</span>执曹军（攻）</button><button class="fac" data-py="1" style="--c:#6e4a7a"><span class="seal" style="background:#6e4a7a">吕</span>执吕军（守）</button></div>
+  </div>
+  <div class="bcard">
+    <div class="ctitle"><span class="seal">史</span>名关与水战</div>
+    <div class="hbtl"><b>虎牢关之战</b><small>雄关攻防 · 两山夹峙，一门当关</small><div class="row"><button data-hs="hulao" data-p="0" class="red">执联军（攻）</button><button data-hs="hulao" data-p="1">执吕布（守）</button><button data-hs="hulao" data-p="-1">观战</button></div></div>
+    <div class="hbtl"><b>合肥之战</b><small>逍遥津 · 张辽八百破十万</small><div class="row"><button data-hs="hefei" data-p="0" class="red">执孙权（攻）</button><button data-hs="hefei" data-p="1">执张辽（守）</button><button data-hs="hefei" data-p="-1">观战</button></div></div>
+    <div class="hbtl"><b>赤壁之战</b><small>水战 · 连环船、东南风、火船</small><div class="row"><button data-hs="chibi" data-p="0" class="red">执孙刘（攻）</button><button data-hs="chibi" data-p="1">执曹操（守）</button><button data-hs="chibi" data-p="-1">观战</button></div></div>
+  </div>
+  <div class="bcard">
+    <div class="ctitle"><span class="seal">战</span>自定义会战</div>
+    <div class="opt"><label>我方</label><div class="seg" id="cMe"></div></div>
+    <div class="opt"><label>敌方</label><div class="seg" id="cFoe"></div></div>
+    <div class="opt"><label>规模</label><div class="seg" id="cSize"></div></div>
+    <div class="opt"><label>地形</label><div class="seg" id="cTer"></div></div>
+    <div class="row"><button id="cGo" class="red">开　战</button><button id="cWatch">观战（AI 对 AI）</button></div>
+  </div>
+  <div class="bcard">
+    <div class="ctitle"><span class="seal">城</span>攻城演习</div>
+    <div class="opt"><label>攻方</label><div class="seg" id="sAtt"></div></div>
+    <div class="opt"><label>守方</label><div class="seg" id="sDef"></div></div>
+    <div class="opt"><label>城防</label><div class="seg" id="sWall"></div></div>
+    <div class="row"><button id="sGoA" class="red">执攻方</button><button id="sGoD">执守方</button><button id="sWatch">观战</button></div>
+  </div>
+  <div class="bcard slim"><div class="opt"><label>难度</label><div class="seg" id="cDiff"></div></div>
+    <div class="row"><button id="helpBtn">操作说明</button><button id="bBackM2" style="display:none">返回主菜单</button></div></div>
+  <p class="foot">电脑、手机、平板均可游玩 · 横屏体验更佳</p>
+</div></div>
+<div id="smenu" class="screen mzb"><div class="mwrap">
+  <h1 id="smT">历史战役</h1><div class="sub" id="smSub"></div>
+  <div id="smList"></div>
+  <div class="row" style="justify-content:center;margin:14px 0 30px"><button id="smBack">返回主菜单</button></div>
+</div></div>
+<div id="battle" class="screen mzb">
+  <canvas id="cv"></canvas>
+  <div id="hTop"><span class="seal" id="hSeal">曹</span><div class="hbars">
+    <div class="hrow"><b id="hN0"></b><span class="bar2"><i id="hB0"></i><i id="hB1"></i></span><b id="hN1"></b></div>
+    <div class="hinfo"><span id="hTitle"></span><span id="hMor"></span><span id="hHour"></span><span id="hWind"></span></div></div></div>
+  <div id="plaque"><div id="plT"></div><span class="pseal" id="plEra"></span></div>
+  <div id="ctl"><button id="bPause" title="暂停 (空格)">❚❚</button><button id="bSpeed" title="速度">×1</button><button id="bAuto" title="托管：由 AI 指挥我军">托管</button><button id="bMenu" title="菜单">☰</button></div>
+  <canvas id="mini"></canvas>
+  <div id="feed"></div>
+  <div id="banner"></div>
+  <div id="deployBar"><div class="dtxt">布阵阶段：选中部队后点地面调整位置，可拖出阵线</div><div class="dbtns"><button id="bAutoDeploy">自动布阵</button><button id="bStart" class="red">开　战</button></div></div>
+  <div id="bottom"><div id="abil"></div><div id="cardsWrap"><div class="allcol"><button id="bAll" class="allbtn">全军</button><button id="bForm" class="allbtn">阵型</button><button id="bMulti" class="allbtn">多选</button><button id="bGrp" class="allbtn">编队</button></div><div id="cards"></div></div></div>
+  <div id="pausedTag">暂　停</div>
+  <div id="formp" class="fpanel"></div><div id="grpp" class="fpanel"></div>
+  <div id="sobj"></div><div id="snarr"></div>
+  <div id="cam3" style="display:none"><button data-c="l" title="向左转 [">⟲</button><button data-c="r" title="向右转 ]">⟳</button><button data-c="t" title="俯视 / 平视">俯</button><button data-c="0" title="复位视角">正</button></div>
+</div>
+<div id="bmodal" class="mzb"></div>
+
+<div id="modal"></div><div id="busy"></div>
+</body></html>
