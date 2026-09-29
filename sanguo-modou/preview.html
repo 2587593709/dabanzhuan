@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>三国墨战 · 兵种形象画卷</title>
+  <link rel="icon" href="/dabanzhuan/sanguo-modou/favicon.ico" sizes="any">
+  <link rel="icon" href="/dabanzhuan/sanguo-modou/icon-source.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/dabanzhuan/sanguo-modou/assets/preview-D3di2EIi.js"></script>
+  <link rel="modulepreload" crossorigin href="/dabanzhuan/sanguo-modou/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="/dabanzhuan/sanguo-modou/assets/sprites-BOSMAjlI.js">
+  <link rel="stylesheet" crossorigin href="/dabanzhuan/sanguo-modou/assets/preview-BmmQCmiV.css">
+<link rel="manifest" href="/dabanzhuan/sanguo-modou/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/dabanzhuan/sanguo-modou/registerSW.js"></script></head>
+<body>
+  <!-- 顶部主标题栏 -->
+  <header class="header-bar">
+    <div class="brand-wrap">
+      <span class="seal">画</span>
+      <div class="brand-title">
+        <h1>三国墨战 · 兵种形象画卷</h1>
+        <div class="subtitle">各兵种水墨手绘小人形象、兵器服色与动作一览</div>
+      </div>
+    </div>
+    <a href="./index.html" class="btn-back">← 返回游戏主页</a>
+  </header>
+
+  <!-- 选项筛选栏 -->
+  <section class="toolbar-wrap">
+    <!-- 第一行：呈现方式与阵营服色 -->
+    <div class="toolbar-row">
+      <span class="toolbar-label">展示模式：</span>
+      <div class="chip-group">
+        <button class="chip active" data-mode="strip">三姿并列（待机 · 迈步 · 交战）</button>
+        <button class="chip" data-mode="anim">▶ 动态走步播放</button>
+      </div>
+
+      <span class="toolbar-label" style="margin-left:16px">服色方案：</span>
+      <div class="chip-group">
+        <button class="chip active" data-fac="default">各势力默认特色</button>
+        <button class="chip" data-fac="cao"><span class="chip-color-dot" style="background:#3f5f8f"></span>曹操蓝</button>
+        <button class="chip" data-fac="lb"><span class="chip-color-dot" style="background:#6e3f7a"></span>吕布紫</button>
+        <button class="chip" data-fac="lbei"><span class="chip-color-dot" style="background:#3f7d4a"></span>刘备绿</button>
+        <button class="chip" data-fac="sc"><span class="chip-color-dot" style="background:#b0402a"></span>孙策红</button>
+        <button class="chip" data-fac="yshao"><span class="chip-color-dot" style="background:#c09a30"></span>袁绍金</button>
+        <button class="chip" data-fac="raw"><span class="chip-color-dot" style="background:#2b2621"></span>白描墨线</button>
+      </div>
+
+      <span class="toolbar-label" style="margin-left:16px">画面缩放：</span>
+      <div class="chip-group">
+        <button class="chip active" data-scale="3.5">标准</button>
+        <button class="chip" data-scale="4.5">放大</button>
+        <button class="chip" data-scale="6">超清特写</button>
+      </div>
+    </div>
+
+    <!-- 第二行：兵种类别筛选与搜索 -->
+    <div class="toolbar-row">
+      <span class="toolbar-label">兵种大类：</span>
+      <div class="chip-group">
+        <button class="chip active" data-cat="all">全部兵种</button>
+        <button class="chip" data-cat="inf">步兵系</button>
+        <button class="chip" data-cat="spear">枪戟系</button>
+        <button class="chip" data-cat="ranged">弓弩系</button>
+        <button class="chip" data-cat="cav">骑兵系</button>
+        <button class="chip" data-cat="siege">战象与器械</button>
+        <button class="chip" data-cat="ship">战船水军</button>
+        <button class="chip" data-cat="hero">名将统领</button>
+        <button class="chip" data-cat="dead">战损倒地</button>
+      </div>
+
+      <span id="countBadge" style="font-size:12px;color:var(--ink-light);margin-left:auto"></span>
+      <input type="text" id="searchInput" class="search-input" placeholder="搜索兵种名称、代码或特征...">
+    </div>
+  </section>
+
+  <!-- 兵种形象展示网格 -->
+  <main class="gallery-container">
+    <div class="gallery-grid" id="galleryGrid">
+      <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #f6eedb; font-size: 16px;">
+        正在装载水墨小人形象画卷…
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>
