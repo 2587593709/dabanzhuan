@@ -13,9 +13,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/dabanzhuan/sanguo-modou/assets/main--wUIEBhi.js"></script>
-  <link rel="modulepreload" crossorigin href="/dabanzhuan/sanguo-modou/assets/sprites-B5uaXwpF.js">
-  <link rel="stylesheet" crossorigin href="/dabanzhuan/sanguo-modou/assets/main-BzSitRnl.css">
+  <script type="module" crossorigin src="/dabanzhuan/sanguo-modou/assets/main-Dj5baNDY.js"></script>
+  <link rel="modulepreload" crossorigin href="/dabanzhuan/sanguo-modou/assets/sprites-BTgX62MP.js">
+  <link rel="stylesheet" crossorigin href="/dabanzhuan/sanguo-modou/assets/main-BALFCZaA.css">
 <link rel="manifest" href="/dabanzhuan/sanguo-modou/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/dabanzhuan/sanguo-modou/registerSW.js"></script></head><body>
 <!-- 界面骨架：源自 三国墨战_M6_卫队.html（scripts/split-html.mjs 生成） -->
 <div id="title" class="screen"><div class="wrap">
@@ -54,6 +54,12 @@
         </div>
       </div>
       <div id="zoomCtl"><button id="zin">＋</button><button id="zout">－</button><button id="ztilt" title="切换2.5D卷轴微浮雕视角">卷</button><button id="zfit">⌂</button></div>
+      <div id="mapLayers" class="map-layers">
+        <button class="layer-btn active" data-layer="faction" title="势力割据图">割据</button>
+        <button class="layer-btn" data-layer="economy" title="天下物产与工坊">物产</button>
+        <button class="layer-btn" data-layer="military" title="兵势边境与防线">兵势</button>
+        <button class="layer-btn" data-layer="logistics" title="关隘渡口与驰道">津渡</button>
+      </div>
       <div id="toast"></div>
       <canvas id="mini2"></canvas>
     </div>
