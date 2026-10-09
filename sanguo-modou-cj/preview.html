@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>三国墨战 · 全景风物画卷</title>
+  <link rel="icon" href="/dabanzhuan/sanguo-modou-cj/favicon.ico" sizes="any">
+  <link rel="icon" href="/dabanzhuan/sanguo-modou-cj/icon-source.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/dabanzhuan/sanguo-modou-cj/assets/preview-D6hzECKy.js"></script>
+  <link rel="modulepreload" crossorigin href="/dabanzhuan/sanguo-modou-cj/assets/sprites-BTgX62MP.js">
+  <link rel="stylesheet" crossorigin href="/dabanzhuan/sanguo-modou-cj/assets/preview-CVwyQJJY.css">
+<link rel="manifest" href="/dabanzhuan/sanguo-modou-cj/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/dabanzhuan/sanguo-modou-cj/registerSW.js"></script></head>
+<body>
+  <!-- 顶部主标题栏 -->
+  <header class="header-bar">
+    <div class="brand-wrap">
+      <span class="seal">卷</span>
+      <div class="brand-title">
+        <h1>三国墨战 · 全景风物画卷</h1>
+        <div class="subtitle">名将神兵 · 演武对决 · 兵勇战将 · 城池要塞 · 内政营建 · 战场景物 · 军纛旗仪 水墨全景收录</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="hotkey-tip">快捷键：1~5 切风物 | 6 名将神兵 | 7 水墨演武 | Esc 关闭细览</span>
+      <a href="./index.html" class="btn-back">← 返回游戏主页</a>
+    </div>
+  </header>
+
+  <!-- 主分类一级标签条 -->
+  <nav class="main-tabs-wrap" id="mainTabs">
+    <button class="main-tab-btn active" data-tab="units"><span class="tab-icon">🗡</span> 兵勇战将</button>
+    <button class="main-tab-btn" data-tab="heroes"><span class="tab-icon">👑</span> 名将神兵</button>
+    <button class="main-tab-btn" data-tab="duel"><span class="tab-icon">⚔️</span> 水墨演武台</button>
+    <button class="main-tab-btn" data-tab="cities"><span class="tab-icon">🏯</span> 城池要塞</button>
+    <button class="main-tab-btn" data-tab="buildings"><span class="tab-icon">🏛</span> 内政营建</button>
+    <button class="main-tab-btn" data-tab="props"><span class="tab-icon">🌲</span> 战场景物</button>
+    <button class="main-tab-btn" data-tab="flags"><span class="tab-icon">🚩</span> 军纛旗仪</button>
+  </nav>
+
+  <!-- 选项筛选栏 -->
+  <section class="toolbar-wrap">
+    <!-- 第一行：呈现方式、阵营服色与缩放 -->
+    <div class="toolbar-row">
+      <!-- 动态/三姿模式（兵勇专属） -->
+      <div class="toolbar-group" id="modeGroup">
+        <span class="toolbar-label">展示模式：</span>
+        <div class="chip-group">
+          <button class="chip active" data-mode="strip">三姿并列（待机 · 迈步 · 交战）</button>
+          <button class="chip" data-mode="anim">▶ 动态走步播放</button>
+        </div>
+      </div>
+
+      <!-- 势力色彩 -->
+      <div class="toolbar-group" id="facGroup">
+        <span class="toolbar-label">势力服色：</span>
+        <div class="chip-group">
+          <button class="chip active" data-fac="default">默认特色</button>
+          <button class="chip" data-fac="cao"><span class="chip-color-dot" style="background:#3f5f8f"></span>曹操蓝</button>
+          <button class="chip" data-fac="lb"><span class="chip-color-dot" style="background:#6e3f7a"></span>吕布紫</button>
+          <button class="chip" data-fac="lbei"><span class="chip-color-dot" style="background:#3f7d4a"></span>刘备绿</button>
+          <button class="chip" data-fac="sc"><span class="chip-color-dot" style="background:#b0402a"></span>孙策红</button>
+          <button class="chip" data-fac="yshao"><span class="chip-color-dot" style="background:#c09a30"></span>袁绍金</button>
+          <button class="chip" data-fac="raw"><span class="chip-color-dot" style="background:#2b2621"></span>白描墨线</button>
+        </div>
+      </div>
+
+      <!-- 缩放控制 -->
+      <div class="toolbar-group" id="scaleGroup">
+        <span class="toolbar-label">画面缩放：</span>
+        <div class="chip-group">
+          <button class="chip active" data-scale="3.5">标准</button>
+          <button class="chip" data-scale="4.5">放大</button>
+          <button class="chip" data-scale="6">超清特写</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 第二行：子类筛选与搜索 -->
+    <div class="toolbar-row">
+      <div class="toolbar-group" id="subCatGroup">
+        <span class="toolbar-label" id="catLabel">分类检索：</span>
+        <div class="chip-group" id="subCatChips">
+          <!-- 动态注入各分类按钮 -->
+        </div>
+      </div>
+
+      <span id="countBadge" style="font-size:12px;color:var(--ink-light);margin-left:auto"></span>
+      <input type="text" id="searchInput" class="search-input" placeholder="搜索画卷内容、名称或特征...">
+    </div>
+  </section>
+
+  <!-- 全景风物画卷展示网格 -->
+  <main class="gallery-container">
+    <div class="gallery-grid" id="galleryGrid">
+      <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #f6eedb; font-size: 16px;">
+        正在装载三国全景风物画卷…
+      </div>
+    </div>
+  </main>
+
+  <!-- 浮动回到卷首按钮 -->
+  <button id="btnBackToTop" class="btn-float-top" title="回到卷首" style="display:none">
+    <span class="float-icon">▲</span>
+    <span>卷首</span>
+  </button>
+
+  <!-- 展卷细览交互模态弹窗 -->
+  <div id="detailModal" class="detail-modal" style="display:none" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-scroll-card">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <span class="modal-seal" id="modalSeal">览</span>
+          <div>
+            <h2 class="modal-title" id="modalTitle">风物名称</h2>
+            <span class="modal-id" id="modalId">ID</span>
+          </div>
+        </div>
+        <button class="btn-close-modal" id="modalCloseBtn" title="关闭 (Esc)">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-stage-wrapper">
+          <div class="modal-stage-box" id="modalStageBox">
+            <!-- 注入放大高清展示 Canvas -->
+          </div>
+          <div class="modal-actions-bar">
+            <button class="btn-modal-action" id="modalDownloadBtn">📥 保存画幅原图</button>
+          </div>
+        </div>
+
+        <div class="modal-lore-box">
+          <div class="lore-section">
+            <h3 class="lore-title">【 水墨典故与战阵功用 】</h3>
+            <p class="lore-desc" id="modalDesc"></p>
+          </div>
+          <div class="lore-section">
+            <h3 class="lore-title">【 丹青造型特征 】</h3>
+            <div class="lore-features" id="modalFeatures"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
